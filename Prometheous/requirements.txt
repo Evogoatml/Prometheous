@@ -1,0 +1,32 @@
+# Core
+pydantic>=2.5.0,<3.0.0
+pyyaml>=6.0,<7.0
+
+# Deep Learning / AI
+tensorflow>=2.13.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<2.0.0
+matplotlib>=3.7.0,<4.0.0
+
+# Quantum (if you use Qiskit in mps_qnn or other)
+qiskit>=0.39.0,<1.0.0
+qiskit-aer>=0.11.0,<1.0.0
+
+# LLM Clients (OpenAI, Anthropic, etc.)
+openai>=1.0.0,<2.0.0
+anthropic>=0.18.0,<1.0.0
+groq>=0.4.0,<1.0.0
+requests>=2.31.0,<3.0.0
+
+# Database / Storage
+sqlalchemy>=2.0.0,<3.0.0
+sqlite3  # Built-in, but include for clarity
+
+# Utilities
+python-dotenv>=1.0.0,<2.0.0
+colorama>=0.4.6,<1.0.0
+tqdm>=4.65.0,<5.0.0
+
+# Optional but recommended
+# huggingface-hub>=0.19.0,<1.0.0  # if you use HuggingFace models
+# transformers>=4.30.0,<5.0.0     # if you need transformer models
