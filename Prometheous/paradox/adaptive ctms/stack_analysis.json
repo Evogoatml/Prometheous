@@ -1,0 +1,84 @@
+{
+  "metrics": {
+    "total_directories": 49745,
+    "total_files": 14867
+  },
+  "languages": {
+    "Python": 14361,
+    "JavaScript": 21,
+    "C#": 82,
+    "md": 79,
+    "C": 41,
+    "ipynb": 10,
+    "sh": 10,
+    "txt": 149,
+    "yml": 2,
+    "json": 13,
+    "C++": 89,
+    "yaml": 10
+  },
+  "crypto_algorithms": [
+    "AES",
+    "AFFINE",
+    "BLOWFISH",
+    "CAESAR",
+    "DES",
+    "DIFFIE",
+    "ELLIPTIC",
+    "HILL",
+    "MD5",
+    "MONOALPHABETIC",
+    "PLAYFAIR",
+    "RSA",
+    "SHA",
+    "VIGENERE"
+  ],
+  "ai_ml_frameworks": [
+    "keras",
+    "openai",
+    "pytorch",
+    "sklearn",
+    "tensorflow",
+    "transformers",
+    "wandb"
+  ],
+  "data_structures": [
+    "Avl",
+    "Binary Tree",
+    "Graph",
+    "Hash",
+    "Heap",
+    "Linked List",
+    "Queue",
+    "Stack",
+    "Trie"
+  ],
+  "algorithms": [
+    "Backtracking",
+    "Divide And Conquer",
+    "Dynamic Programming",
+    "Graph",
+    "Greedy",
+    "Matrix",
+    "Searching",
+    "Sorting",
+    "String",
+    "Tree"
+  ],
+  "frameworks": [
+    "Angular",
+    "Express",
+    "Fastapi",
+    "Flask",
+    "React",
+    "Spring"
+  ],
+  "cloud_platforms": [
+    "DELTA"
+  ],
+  "databases": [
+    "Mysql",
+    "Redis",
+    "Sqlite"
+  ]
+}

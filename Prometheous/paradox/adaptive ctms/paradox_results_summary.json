@@ -1,0 +1,75 @@
+{
+  "execution_time": "0.00s",
+  "paradoxes_analyzed": 10,
+  "meta_insights_generated": 6,
+  "paradoxes": {
+    "1_godel_knot": {
+      "question": "Can CTMS validate itself?",
+      "answer": "UNDECIDABLE",
+      "resolution": "axiomatic_bootstrapping",
+      "insight": "System cannot prove its own consistency (G\u00f6del's 2nd Theorem)"
+    },
+    "2_halting_problem": {
+      "question": "Is code production-ready without deployment?",
+      "answer": "UNDECIDABLE (Halting Problem)",
+      "resolution": "probabilistic_validation",
+      "insight": "Production-readiness is probability distribution (95% confidence)"
+    },
+    "3_observer_effect": {
+      "question": "Can we know security state without changing it?",
+      "answer": "NO (Observer Effect)",
+      "resolution": "entangled_probability_distributions",
+      "insight": "Security exists as probability distribution until measured"
+    },
+    "4_liars_paradox": {
+      "question": "Who reviews the code review system?",
+      "answer": "INFINITE REGRESS",
+      "resolution": "foundational_bootstrapping",
+      "insight": "Establish axiomatic primitives assumed correct"
+    },
+    "5_ship_of_theseus": {
+      "question": "Is continuously deployed system the same system?",
+      "answer": "PARADOX (identity unclear)",
+      "resolution": "topological_identity",
+      "insight": "Identity is topological, not material - preserved through continuous deformation"
+    },
+    "6_russell_set": {
+      "question": "Does non-compliant set include its definition?",
+      "answer": "CONTRADICTION",
+      "resolution": "paraconsistent_logic",
+      "insight": "Local contradictions don't cause global explosion"
+    },
+    "7_quantum_commit": {
+      "question": "Which reviewer approved first in distributed system?",
+      "answer": "UNDEFINED (relativity)",
+      "resolution": "causal_ordering",
+      "insight": "Use causal graphs, not absolute timestamps"
+    },
+    "8_infinite_why": {
+      "question": "When does the chain of 'why' terminate?",
+      "answer": "INFINITE REGRESS",
+      "resolution": "foundational_ontology",
+      "insight": "Chain ends at self-evident axioms"
+    },
+    "9_uncertainty_principle": {
+      "question": "Can we know exact behavior AND exact coverage?",
+      "answer": "NO (Uncertainty Principle)",
+      "resolution": "probabilistic_testing",
+      "insight": "Testing provides confidence intervals, not binary pass/fail"
+    },
+    "10_axiom_of_choice": {
+      "question": "Can we choose secure deps from infinite configs?",
+      "answer": "EXISTS but NON-CONSTRUCTIVE",
+      "resolution": "constructive_security",
+      "insight": "Use formal verification, not exhaustive search"
+    }
+  },
+  "meta_principles": [
+    "Accept foundational axioms (no infinite regress)",
+    "Embrace probabilistic validation (no false certainty)",
+    "Maintain topological identity (continuous evolution)",
+    "Use causal reasoning (not absolute time)",
+    "Provide constructive proofs (not existential claims)",
+    "Tolerate local contradictions (paraconsistent logic)"
+  ]
+}
