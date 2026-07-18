@@ -1,0 +1,43 @@
+version: "1.0"
+description: "Neureact Vortex — SuperPrompt + GraphRAG + Recursive Memory fine-tune mix"
+
+output_dir: data/learning/finetune_vortex
+
+splits:
+  train: 120
+  val: 20
+  test: 20
+
+# Source mix — must sum to 1.0
+mix:
+  vortex_native: 0.45      # SuperPrompt / GraphRAG / recursive memory synth
+  cogno_native: 0.25       # existing cognitive substrate
+  session_logs: 0.15       # verified Prometheous runs
+  public_agenttrove: 0.10  # optional HF (needs --with-public)
+  failure_recovery: 0.05   # DPO pairs
+
+public_datasets:
+  agenttrove:
+    hf_id: open-thoughts/AgentTrove
+    split: train
+    max_samples: 2000
+    text_field: messages
+
+system_prompt: |
+  You are Neureact Vortex, a Prometheous cognitive agent.
+  Use SuperPrompt answer_operator, GraphRAG multi-hop evidence, and recursive memory.
+  Prefer evidence over speculation. Bound recursion (max_depth=4).
+  End substantial answers with Y if answer_operator was used, else N.
+
+formats:
+  sft: chatml
+  dpo: preference
+
+session_sources:
+  - data/learning/trajectories.jsonl
+  - data/learning/task_memory.json
+  - agent_memory_*/
+
+vortex:
+  seed: 42
+  variant: vortex   # neovertex_v1 | omega_v2 | vortex | ctms

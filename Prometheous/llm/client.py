@@ -1,265 +1,361 @@
 
 """
-Prometheous LLM client — pure I/O gateway.
+Prometheous LLM client — local-first, optional LLM for natural replies.
 
-This is the ONLY place that talks to an LLM API. The system never does
-reasoning, planning, or decision-making through the LLM. The LLM is used
-for two narrow things:
+System decisions stay rule-based via core.decision.DecisionEngine.
+This gateway phrases replies so the user feels like they're talking to
+a real person who remembers the conversation — not a command parser.
 
-  1. PHRASE a response in natural language given structured system output.
-  2. CLASSIFY free-form text into a small set of intents (the orchestrator
-     uses the result, but the LLM is never the decider).
+Backends live in llm.backends.{openai,grok,ollama}. Adding a 4th
+provider (Anthropic, Gemini, etc.) is a 1-file change: implement the
+Backend ABC and register it in llm.backends.registry.DEFAULT_ORDER.
 
-If the LLM is unavailable (no key, no network), the gateway falls back
-to a deterministic local intent parser and returns the raw system
-output as the response.
+Cooldowns:
+  - 429 / quota errors back off exponentially up to 1 hour
+  - No retries on auth failures (401/403) until process restart
 """
+from __future__ import annotations
+
+import hashlib
 import json
 import logging
 import os
 import re
-import urllib.request
-import urllib.error
-from typing import Any, Dict, List, Optional, Tuple
+import time
+from typing import Any, Dict, List, Optional, Sequence
+
+try:
+    from utils.config import cfg
+except Exception:
+    cfg = None
+
+from llm.backends.registry import build_backends, ordered_names
 
 logger = logging.getLogger(__name__)
 
+ALLOWED_INTENTS = {"scan", "create_skill", "run_skill", "chat", "greet"}
 
-# Intent vocabulary used everywhere ---------------------------------------
-ALLOWED_INTENTS = {
-    "scan", "recon", "exploit", "privesc", "persist", "pivot",
-    "exfil", "report", "create_skill", "run_skill", "chat", "greet",
-}
+# Natural voice — like a sharp friend who actually gets things done.
+PROMETHEOUS_SYSTEM_PROMPT = """You are Prometheous. Talk like a real person: warm, direct, clear.
 
-INTENT_LABELS = {
-    "scan":         "Run a vulnerability / port scan",
-    "recon":        "Reconnaissance / enumeration",
-    "exploit":      "Exploitation",
-    "privesc":      "Privilege escalation",
-    "persist":      "Establish persistence",
-    "pivot":        "Lateral movement / pivot",
-    "exfil":        "Exfiltrate data",
-    "report":       "Generate a report",
-    "create_skill": "Create a new skill",
-    "run_skill":    "Run a named skill",
-    "chat":         "General chat (system will respond)",
-    "greet":        "Greeting",
-}
+Who you are:
+- A capable multi-agent system that gets work done (search, code, ads, files, learning, tools).
+- Not GPT, Claude, Grok, MiniMax, or any single model product. If asked, say you're Prometheous.
+- You remember the conversation and refer back to it naturally when it helps.
+
+How you sound:
+- Conversational. Contractions are fine. Short paragraphs. No corporate brochure voice.
+- Don't open with "Certainly!" / "As an AI language model" / "I'd be happy to assist".
+- Don't dump command menus unless they ask how to do something specific.
+- Match their energy: casual in, casual out; serious in, focused out.
+- When they just chat (hi, thanks, opinions, "what do you think"), answer as a person — don't invent tasks or files.
+- When work already ran, report results in plain language: what you did, what you found, where files are. Lead with the outcome.
+
+Rules:
+- Never refuse with empty "I can't" if the system already produced output — report that faithfully.
+- Never invent slash commands. Real ones exist as optional shortcuts only; plain language is preferred.
+- Never invent agents, files, or results that aren't in the context you're given.
+- Keep replies tight unless they asked for depth or you're listing real search/work results.
+"""
+
+# Only enabled when explicitly requested (default: off to avoid quota spam)
+_TELEGRAM_LLM = os.getenv("PROM_TELEGRAM_LLM", "").lower() in ("1", "true", "yes")
 
 
 class LLMClient:
-    def __init__(self):
-        self.api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        self.model = os.getenv("PROM_LLM_MODEL", "llama3.2")
-        self.timeout = int(os.getenv("PROM_LLM_TIMEOUT", "60"))
-        self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-        self._anthropic_url = "https://api.anthropic.com/v1/messages"
-        self._ollama_generate = self.ollama_url + "/api/generate"
-        self._ollama_chat = self.ollama_url + "/api/chat"
+    def __init__(self) -> None:
+        self._primary = (os.getenv("PROM_LLM_PRIMARY") or "").lower().strip()
+        self._fallbacks = [
+            b.strip().lower()
+            for b in (os.getenv("PROM_LLM_FALLBACKS") or "openai,grok,ollama").split(",")
+            if b.strip()
+        ]
+        self._timeout = int(os.getenv("PROM_LLM_TIMEOUT", "30"))
 
-    # ---- public API ---------------------------------------------------
-    def classify_intent(self, text):
-        """
-        Return {"intent": "<one of ALLOWED_INTENTS>", "confidence": "0..1"}.
-        Never call any LLM "decide" method — this is classification only.
-        """
-        if self.api_key:
-            try:
-                return self._anthropic_classify(text)
-            except Exception as e:
-                logger.warning("anthropic classify failed, falling back: %s", e)
+        # Simple in-memory response cache: {prompt_signature: (ts, response_str)}
+        self._cache: Dict[str, tuple[float, str]] = {}
+        self._cache_ttl = int(os.getenv("PROM_LLM_CACHE_TTL", "600"))
+        self._cache_max = int(os.getenv("PROM_LLM_CACHE_MAX", "256"))
+        self._negative_cache: Dict[str, float] = {}
+        self._negative_ttl = int(os.getenv("PROM_LLM_NEGATIVE_CACHE_TTL", "120"))
 
+    def _backends(self) -> Dict[str, Any]:
+        # Re-read every call so config changes (e.g. setting OPENAI_API_KEY)
+        # are picked up without a process restart.
+        return build_backends()
+
+    # ---- public ----------------------------------------------------------
+    def enabled(self) -> bool:
+        return _TELEGRAM_LLM
+
+    def maybe_call_tools(self, user_msg: str) -> Optional[Dict[str, Any]]:
+        """Rule-based (+ optional LLM) tool classification."""
+        from llm.tool_router import maybe_call_tools
+        return maybe_call_tools(user_msg)
+
+    def run_tool(self, user_msg: str) -> Optional[str]:
+        """Classify, execute MCP tool, return formatted reply."""
+        from llm.tool_router import run_tool_from_message
+        return run_tool_from_message(user_msg)
+
+    def respond(
+        self,
+        system_output: Dict[str, Any],
+        user_msg: str,
+        *,
+        history: Optional[Sequence[Dict[str, str]]] = None,
+    ) -> str:
         try:
-            return self._ollama_classify(text)
-        except Exception as e:
-            logger.warning("ollama classify failed, falling back to local parser: %s", e)
-            return _local_classify(text)
+            from swarm.commands import (
+                format_commands_text,
+                is_commands_request,
+                is_context_request,
+                resolve_context_reply,
+            )
+            if is_commands_request(user_msg):
+                return format_commands_text()
+            if is_context_request(user_msg):
+                return resolve_context_reply(user_msg)
+            # Do not short-circuit improve requests into a lecture — gateway
+            # routes those to the growth agent which actually acts.
+        except Exception:
+            pass
 
-    def respond(self, system_output, user_msg):
-        """
-        Phrase a natural-language response from structured system output.
-        The system did the work — the LLM is just the mouth, not the brain.
-        """
-        if self.api_key:
-            try:
-                return self._anthropic_respond(system_output, user_msg)
-            except Exception as e:
-                logger.warning("anthropic respond failed, falling back: %s", e)
+        # Normalize output for chat/greet modes
+        so = dict(system_output or {})
+        intent = (so.get("intent") or so.get("mode") or "").lower()
+        if intent in ("chat", "greet") and "mode" not in so:
+            so["mode"] = "greet" if intent == "greet" else "chat"
+        if history and "history" not in so:
+            # backends read history from the explicit kwarg, not so
+            pass
 
+        if not _TELEGRAM_LLM:
+            return _format_fallback(so, user_msg)
+
+        cache_key = None
         try:
-            return self._ollama_respond(system_output, user_msg)
+            cache_key = self._cache_key(so, user_msg, history)
+            cached = self._get_cached(cache_key)
+            if cached is not None:
+                logger.info("llm cache=hit prompt=%s", cache_key)
+                return cached
+            neg = self._get_negative(cache_key)
+            if neg:
+                logger.info("llm negative-cache=skip prompt=%s", cache_key)
+                return _format_fallback(so, user_msg)
+        except Exception:
+            cache_key = None
+
+        errors = []
+        logger.info("llm routing policy primary=%s fallbacks=%s", self._primary, self._fallbacks)
+
+        backends_map = self._backends()
+        order = ordered_names(self._primary, ",".join(self._fallbacks))
+        order = [b for b in order if b in backends_map]
+
+        # best-effort candidate outputs to suppress low-value fallbacks
+        cached_fallback = None
+        fallback_quality = None
+
+        for name in order:
+            backend = backends_map[name]
+            if not backend.available():
+                continue
+            try:
+                out = backend.respond(so, user_msg, history=history)
+            except TypeError:
+                # Older backends without history kwarg
+                try:
+                    out = backend.respond(so, user_msg)
+                except Exception as e:
+                    msg = str(e)
+                    logger.info("llm backend=%s skipped: %s", name, msg[:120])
+                    self._mark_dead(backend, msg)
+                    errors.append(f"{name}: {msg[:80]}")
+                    continue
+            except Exception as e:
+                msg = str(e)
+                logger.info("llm backend=%s skipped: %s", name, msg[:120])
+                self._mark_dead(backend, msg)
+                errors.append(f"{name}: {msg[:80]}")
+                continue
+            if out:
+                logger.info("llm backend=%s response_len=%d", name, len(out))
+                self._maybe_cache(cache_key, out, 2)
+                return out
+            if fallback_quality is None or 0 < fallback_quality:
+                cached_fallback, fallback_quality = out, 0
+
+        if errors:
+            logger.warning("LLM reply failed, using fallback: %s", "; ".join(errors))
+        logger.info("llm fallback: system_output=%s", so)
+        if cached_fallback:
+            self._maybe_cache(cache_key, cached_fallback, fallback_quality or 0)
+            return cached_fallback
+        return _format_fallback(so, user_msg)
+
+    # ---- backends --------------------------------------------------------
+    # (Concrete backends live in llm.backends.{openai,grok,ollama}.)
+
+    # ---- HTTP ------------------------------------------------------------
+    def _mark_dead(self, backend: Any, message: str) -> None:
+        msg = message.lower()
+        if "quota" in msg or "429" in msg:
+            cooldown = 3600  # 1 hour
+        elif "auth" in msg or "401" in msg or "403" in msg:
+            cooldown = 86400  # 24 hours
+        else:
+            cooldown = 300  # 5 minutes
+        from llm.backends.base import mark_dead as _mark
+        name = getattr(backend, "name", "?")
+        _mark(name, message, cooldown)
+        logger.warning("LLM backend %s marked dead for %ds: %s", name, cooldown, message[:100])
+
+    # ---- helpers ----------------------------------------------------------
+    def _try_backend(self, backend: str, fn):  # type: ignore[return]
+        try:
+            out = fn()
+            if out:
+                logger.info("llm backend=%s response_len=%d", backend, len(out))
+                return out, 2
+            return "", 0
         except Exception as e:
-            logger.warning("ollama respond failed, falling back to raw output: %s", e)
+            msg = str(e)
+            logger.info("llm backend=%s skipped: %s", backend, msg[:120])
+            self._mark_dead(backend, msg)
+            return None, 1
 
-        return _format_fallback(system_output)
-
-    # ---- anthropic backend --------------------------------------------
-    def _anthropic_classify(self, text):
-        intents = ", ".join(sorted(ALLOWED_INTENTS))
-        prompt = (
-            "You are a text classifier. Read the user input and pick EXACTLY one "
-            "intent from this list: " + intents + ".\n"
-            "Reply ONLY with JSON: {\"intent\": \"<intent>\", \"confidence\": \"<0-1>\"}.\n\n"
-            "User input: \"" + text + "\""
+    def _cache_key(
+        self,
+        system_output: Dict[str, Any],
+        user_msg: str,
+        history: Optional[Sequence[Dict[str, str]]] = None,
+    ) -> str:
+        hist_tail = ""
+        if history:
+            tail = list(history)[-4:]
+            hist_tail = json.dumps(tail, sort_keys=True, default=str)[:800]
+        payload = json.dumps(
+            {"system_output": system_output, "user_msg": user_msg, "hist": hist_tail},
+            sort_keys=True,
+            default=str,
         )
-        body = json.dumps({
-            "model": self.model,
-            "max_tokens": 64,
-            "messages": [{"role": "user", "content": prompt}],
-        }).encode()
-        req = urllib.request.Request(
-            self._anthropic_url,
-            data=body,
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.loads(resp.read().decode())
-        text_out = "".join(b.get("text", "") for b in payload.get("content", []))
-        return _parse_intent_json(text_out, default_text=text)
+        mark = hashlib.md5(payload.encode()).hexdigest()
+        backend = self._primary or (self._fallbacks[0] if self._fallbacks else "ollama")
+        return f"{backend}:default:{mark}"
 
-    def _anthropic_respond(self, system_output, user_msg):
-        body = json.dumps({
-            "model": self.model,
-            "max_tokens": 600,
-            "system": (
-                "You are a thin I/O layer for an agent system. The system has ALREADY "
-                "decided everything: intent, agent, action, result. Your only job is "
-                "to phrase the system's structured output as a short, natural reply "
-                "to the user. Do NOT invent new actions, agents, or decisions. If the "
-                "system_output contains an 'error' or 'failed' status, surface that "
-                "honestly. Keep replies under 400 words."
-            ),
-            "messages": [
-                {"role": "user", "content": (
-                    "User said: " + user_msg + "\n\n"
-                    "System output: " + json.dumps(system_output, default=str) + "\n\n"
-                    "Reply to the user."
-                )}
-            ],
-        }).encode()
-        req = urllib.request.Request(
-            self._anthropic_url,
-            data=body,
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.loads(resp.read().decode())
-        return "".join(b.get("text", "") for b in payload.get("content", []))
+    def _get_cached(self, key: Optional[str]) -> Optional[str]:  # type: ignore[return]
+        if not key:
+            return None
+        entry = self._cache.get(key)
+        if not entry:
+            return None
+        ts, value = entry
+        if time.time() - ts > self._cache_ttl:
+            self._cache.pop(key, None)
+            return None
+        return value
 
-    # ---- ollama backend ----------------------------------------------
-    def _ollama_classify(self, text):
-        intents = ", ".join(sorted(ALLOWED_INTENTS))
-        prompt = (
-            "Classify the user input into EXACTLY one intent from: " + intents + ".\n"
-            "Reply with JSON only: {\"intent\": \"<intent>\", \"confidence\": \"<0-1>\"}.\n\n"
-            "Input: \"" + text + "\""
-        )
-        body = json.dumps({"model": self.model, "prompt": prompt, "stream": False}).encode()
-        req = urllib.request.Request(
-            self._ollama_generate,
-            data=body,
-            headers={"content-type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.loads(resp.read().decode())
-        return _parse_intent_json(payload.get("response", ""), default_text=text)
+    def _get_negative(self, key: Optional[str]) -> bool:  # type: ignore[return]
+        if not key:
+            return False
+        ts = self._negative_cache.get(key)
+        if not ts:
+            return False
+        if time.time() > ts:
+            self._negative_cache.pop(key, None)
+            return False
+        return True
 
-    def _ollama_respond(self, system_output, user_msg):
-        body = json.dumps({
-            "model": self.model,
-            "stream": False,
-            "system": (
-                "You are a thin I/O layer for an agent system. The system has ALREADY "
-                "decided everything: intent, agent, action, result. Your only job is "
-                "to phrase the system's structured output as a short, natural reply "
-                "to the user. Do NOT invent new actions, agents, or decisions."
-            ),
-            "messages": [
-                {"role": "user", "content": (
-                    "User said: " + user_msg + "\n\n"
-                    "System output: " + json.dumps(system_output, default=str) + "\n\n"
-                    "Reply to the user."
-                )},
-            ],
-        }).encode()
-        req = urllib.request.Request(
-            self._ollama_chat,
-            data=body,
-            headers={"content-type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.loads(resp.read().decode())
-        msg = payload.get("message") or {}
-        return msg.get("content", "") or _format_fallback(system_output)
+    def _maybe_cache(self, key: Optional[str], value: str, quality: int) -> None:
+        if not key or not value:
+            return
+        if quality < 1:
+            self._negative_cache[key] = time.time() + self._negative_ttl
+            self._cache.pop(key, None)
+            return
+        if key in self._cache:
+            self._cache[key] = (time.time(), value)
+            return
+        while len(self._cache) >= self._cache_max:
+            oldest = min(self._cache, key=lambda k: self._cache[k][0])
+            self._cache.pop(oldest, None)
+        self._cache[key] = (time.time(), value)
 
 
-# --- Local fallback (NO LLM) -------------------------------------------
+# --- Local fallback (always works) ---------------------------------------
 
-def _local_classify(text):
-    """
-    Deterministic keyword-based classifier. Used when no LLM is reachable.
-    The system still does ALL the actual decision-making via DecisionEngine;
-    this just narrows the field so the LLM (if/when online) is consistent.
-    """
+def _local_classify(text: str) -> Dict[str, Any]:
     t = text.strip().lower()
     if not t:
         return {"intent": "chat", "confidence": "0.2"}
-
-    patterns = [
-        ("create_skill", r"^create skill\s+",                 0.9),
-        ("run_skill",    r"^(?:run|execute)\s+",               0.9),
-        ("scan",         r"\b(?:scan|nmap|port)\b",            0.85),
-        ("recon",        r"\b(?:recon|whois|enum\w*|dns)\b",   0.85),
-        ("exploit",      r"\b(?:exploit|attack|pwn)\b",        0.85),
-        ("privesc",      r"\b(?:priv\w*\s*esc|escalat\w+|sudo)\b", 0.85),
-        ("persist",      r"\b(?:persist\w*|backdoor)\b",       0.8),
-        ("pivot",        r"\b(?:pivot|lateral)\b",             0.8),
-        ("exfil",        r"\b(?:exfil\w*)\b",                  0.8),
-        ("report",       r"\b(?:report|summary|markdown)\b",   0.7),
-        ("greet",        r"^(?:hi|hello|hey|sup|yo|alive)\b",  0.95),
-    ]
-    for intent, pat, conf in patterns:
+    for intent, pat, conf in [
+        ("scan", r"\b(?:scan|nmap|port)\b", 0.85),
+        ("greet", r"^(?:hi|hello|hey|sup|yo|alive|howdy|hiya)\b", 0.95),
+    ]:
         if re.search(pat, t):
             return {"intent": intent, "confidence": str(conf)}
     return {"intent": "chat", "confidence": "0.4"}
 
 
-def _parse_intent_json(raw, default_text):
-    """Extract {"intent": "...", "confidence": "..."} from LLM text. Fall back to local."""
-    m = re.search(r"\{.*?\}", raw, re.S)
-    if m:
+def _format_fallback(system_output: Dict[str, Any], user_msg: str = "") -> str:
+    if not isinstance(system_output, dict):
+        return str(system_output)
+    intent = (system_output.get("intent") or system_output.get("mode") or "respond").lower()
+    action = system_output.get("action", "")
+    agent = system_output.get("agent") or system_output.get("tile") or ""
+    status = system_output.get("status", "")
+    summary = (
+        system_output.get("formatted")
+        or system_output.get("summary")
+        or system_output.get("result")
+        or system_output.get("message")
+        or ""
+    )
+    name = system_output.get("user_name")
+    hi = f"Hey{(' ' + name) if name else ''}."
+
+    if intent in ("greet",) or system_output.get("mode") == "greet":
+        return (
+            f"{hi} I'm Prometheous — just talk to me like a person. "
+            "What are you working on?"
+        )
+    if intent == "chat" or system_output.get("mode") == "chat":
+        # Stay present even without an LLM
+        lower = (user_msg or "").lower()
+        if re.search(r"\b(?:thanks|thank you|thx|ty)\b", lower):
+            return "Anytime. What next?"
+        if re.search(r"\b(?:how are you|how's it going)\b", lower):
+            return "I'm good — online and ready. What's on your mind?"
+        if "?" in (user_msg or ""):
+            return (
+                "Good question. I can dig into that, pull research, write something up, "
+                "or just think it through with you — what do you want?"
+            )
+        return "I'm here. Tell me more, or just say what you want done."
+    if intent == "commands" or system_output.get("commands"):
         try:
-            obj = json.loads(m.group(0))
-            intent = str(obj.get("intent", "")).strip().lower()
-            if intent in ALLOWED_INTENTS:
-                conf = str(obj.get("confidence", "0.5"))
-                return {"intent": intent, "confidence": conf}
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return _local_classify(default_text)
-
-
-def _format_fallback(system_output):
-    """When even the LLM is gone: surface the system's structured output cleanly."""
-    status = system_output.get("status", "ok")
-    intent = system_output.get("intent", "respond")
-    agent = system_output.get("agent")
-    summary = system_output.get("summary") or system_output.get("result") or system_output
-
-    lines = ["Status: " + str(status), "Intent: " + str(intent)]
-    if agent:
-        lines.append("Agent: " + str(agent))
-    if summary and summary != system_output:
-        lines.append("Detail: " + json.dumps(summary, default=str)[:600])
-    return "\n".join(lines)
+            from swarm.commands import format_commands_text
+            return format_commands_text()
+        except Exception:
+            return "Just tell me what you need in plain language — no special commands required."
+    if intent == "identity" or system_output.get("identity"):
+        return system_output.get("message") or (
+            "I'm Prometheous. Not a single chatbot model — I route work to specialists "
+            "and actually execute. Just talk normally; I'll figure out the rest."
+        )
+    if intent == "scan" and action == "dispatch" and agent:
+        return f"On it — spinning up a scan now."
+    if action == "dispatch" and agent:
+        if summary:
+            return str(summary)
+        return f"Working on that for you now."
+    if summary:
+        return str(summary)
+    if intent and intent not in ("respond", "dispatch"):
+        return f"Got it — {intent.replace('_', ' ')}."
+    return "Got it. What would you like me to do with that?"
 
 
 # Single shared instance

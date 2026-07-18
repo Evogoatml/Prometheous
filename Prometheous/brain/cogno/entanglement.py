@@ -1,5 +1,5 @@
 """
-cogno/brain/entanglement.py
+cogno/entanglement.py
 
 Quantum twins paradox as a cognitive primitive.
 Two agents share correlated probability space.

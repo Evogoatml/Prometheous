@@ -1,0 +1,180 @@
+[
+  {
+    "id": "ds_array",
+    "title": "Array / List",
+    "category": "data_structures",
+    "subcategory": "linear",
+    "description": "Contiguous block of memory storing elements of the same type (static arrays) or arbitrary Python objects (dynamic lists). O(1) random access by index. Python list is dynamic — it doubles capacity when full.",
+    "operations": {
+      "access_by_index": "O(1)",
+      "search_unsorted": "O(n)",
+      "search_sorted": "O(log n) binary search",
+      "insert_at_end": "O(1) amortised",
+      "insert_at_i": "O(n) shift elements",
+      "delete_at_end": "O(1)",
+      "delete_at_i": "O(n) shift elements"
+    },
+    "when_to_use": ["need fast random access by index", "elements have natural positional meaning", "simple iteration", "cache-friendly traversal"],
+    "when_to_avoid": ["frequent insertions/deletions in the middle", "unknown or highly variable size with memory constraints", "need fast membership testing (use set instead)"],
+    "python_example": "lst = [3, 1, 4, 1, 5]\nlst.append(9)       # O(1)\nlst.insert(2, 99)   # O(n)\nlst.pop()           # O(1)\nlst.pop(0)          # O(n) — slow!\nlst[2]              # O(1)",
+    "tags": ["array", "list", "linear", "random-access", "contiguous"]
+  },
+  {
+    "id": "ds_linked_list",
+    "title": "Linked List",
+    "category": "data_structures",
+    "subcategory": "linear",
+    "description": "Nodes connected by pointers. Each node stores data and a reference to the next (singly) or both next and previous (doubly) node. No random access — must traverse from head.",
+    "operations": {
+      "access_by_index": "O(n)",
+      "search": "O(n)",
+      "insert_at_head": "O(1)",
+      "insert_at_tail": "O(1) with tail pointer",
+      "insert_after_node": "O(1)",
+      "delete_at_head": "O(1)",
+      "delete_by_value": "O(n)"
+    },
+    "when_to_use": ["frequent insertions/deletions at head or known node", "implementing stacks, queues, deques", "when memory is not contiguous", "undo/redo history"],
+    "when_to_avoid": ["need fast random access", "cache performance matters", "simple forward iteration only (array is faster due to cache)"],
+    "variants": ["singly linked list", "doubly linked list (collections.deque in Python)", "circular linked list"],
+    "python_note": "Python's collections.deque is a doubly-linked list that gives O(1) appendleft/popleft, making it ideal for queues and sliding windows.",
+    "tags": ["linked-list", "pointer", "dynamic", "insertion"]
+  },
+  {
+    "id": "ds_stack",
+    "title": "Stack",
+    "category": "data_structures",
+    "subcategory": "linear",
+    "description": "LIFO (Last-In First-Out) structure. All operations happen at the top: push (add), pop (remove), peek (view top). Models call stacks, expression evaluation, and backtracking.",
+    "operations": {
+      "push": "O(1)",
+      "pop": "O(1)",
+      "peek": "O(1)",
+      "search": "O(n)"
+    },
+    "when_to_use": ["DFS traversal (iterative)", "expression parsing (matching brackets)", "function call simulation", "undo operations", "monotone stack for next-greater-element"],
+    "python_example": "stack = []\nstack.append(x)   # push O(1)\nstack.pop()       # pop O(1)\nstack[-1]         # peek O(1)",
+    "tags": ["stack", "lifo", "dfs", "backtracking"]
+  },
+  {
+    "id": "ds_queue",
+    "title": "Queue / Deque",
+    "category": "data_structures",
+    "subcategory": "linear",
+    "description": "FIFO (First-In First-Out) structure. Enqueue at rear, dequeue at front. Deque (double-ended queue) supports O(1) insert/delete at both ends.",
+    "operations": {
+      "enqueue": "O(1)",
+      "dequeue": "O(1)",
+      "peek_front": "O(1)",
+      "search": "O(n)"
+    },
+    "when_to_use": ["BFS traversal", "task scheduling", "sliding window maximum (monotone deque)", "producer-consumer patterns", "level-order tree traversal"],
+    "python_example": "from collections import deque\nq = deque()\nq.append(x)       # enqueue right O(1)\nq.appendleft(x)   # enqueue left O(1)\nq.popleft()       # dequeue front O(1)\nq.pop()           # dequeue right O(1)",
+    "tags": ["queue", "fifo", "bfs", "deque", "sliding-window"]
+  },
+  {
+    "id": "ds_hash_set",
+    "title": "Hash Set",
+    "category": "data_structures",
+    "subcategory": "hashing",
+    "description": "Unordered collection of unique elements backed by a hash table. Provides average O(1) add, remove, and membership test.",
+    "operations": {
+      "add": "O(1) average",
+      "remove": "O(1) average",
+      "contains": "O(1) average",
+      "iteration": "O(n)"
+    },
+    "when_to_use": ["fast membership testing (x in set)", "deduplication", "visited tracking in graph traversal", "finding intersection/union/difference of collections"],
+    "when_to_avoid": ["need sorted iteration (use sorted list or SortedList)", "need to count occurrences (use Counter/dict)", "need to maintain insertion order (use dict in Python 3.7+)"],
+    "python_example": "seen = set()\nseen.add(x)          # O(1)\nx in seen            # O(1)\nseen.discard(x)      # O(1) no error if missing\nA & B                # intersection O(min(|A|,|B|))\nA | B                # union O(|A|+|B|)",
+    "tags": ["set", "hashing", "membership", "deduplication"]
+  },
+  {
+    "id": "ds_binary_search_tree",
+    "title": "Binary Search Tree (BST)",
+    "category": "data_structures",
+    "subcategory": "trees",
+    "description": "Binary tree where left child < parent < right child. Supports sorted iteration, predecessor/successor, and range queries. Performance degrades to O(n) if unbalanced.",
+    "operations": {
+      "search": "O(log n) balanced / O(n) unbalanced",
+      "insert": "O(log n) / O(n)",
+      "delete": "O(log n) / O(n)",
+      "min/max": "O(log n) / O(n)",
+      "sorted_traversal": "O(n) in-order"
+    },
+    "when_to_use": ["need sorted data with fast insert/delete", "range queries", "floor/ceiling queries", "predecessor/successor"],
+    "variants": ["AVL Tree — self-balancing, strict balance", "Red-Black Tree — self-balancing, looser balance (used in Java TreeMap, Python sortedcontainers)", "B-Tree — for disk storage (databases)"],
+    "python_note": "Python has no built-in BST. Use sortedcontainers.SortedList for O(log n) insert/delete with sorted iteration.",
+    "tags": ["bst", "trees", "sorted", "balanced"]
+  },
+  {
+    "id": "ds_graph_representations",
+    "title": "Graph Representations",
+    "category": "data_structures",
+    "subcategory": "graphs",
+    "description": "Graphs can be represented as adjacency lists (dict of lists) or adjacency matrices (2D array). Choice affects space and operation complexity.",
+    "representations": {
+      "adjacency_list": {
+        "space": "O(V + E)",
+        "check_edge_u_v": "O(degree(u))",
+        "iterate_neighbors": "O(degree(u))",
+        "best_for": "sparse graphs (E << V²)"
+      },
+      "adjacency_matrix": {
+        "space": "O(V²)",
+        "check_edge_u_v": "O(1)",
+        "iterate_neighbors": "O(V)",
+        "best_for": "dense graphs or when O(1) edge check is critical"
+      }
+    },
+    "when_to_use_list": ["most graph problems — sparse graphs are common", "BFS/DFS traversal", "Dijkstra's with heap"],
+    "when_to_use_matrix": ["dense graphs", "Floyd-Warshall all-pairs shortest path", "need O(1) edge existence check"],
+    "python_example": "# Adjacency list (default choice)\ngraph = {0: [(1, 5), (2, 3)], 1: [(3, 1)], ...}\n\n# Defaultdict for cleaner construction\nfrom collections import defaultdict\ng = defaultdict(list)\ng[u].append((v, weight))",
+    "tags": ["graph", "adjacency-list", "adjacency-matrix", "representation"]
+  },
+  {
+    "id": "ds_monotone_stack",
+    "title": "Monotone Stack",
+    "category": "data_structures",
+    "subcategory": "advanced",
+    "description": "A stack that maintains elements in monotone increasing or decreasing order. When a new element violates the invariant, elements are popped and processed. Used to find next-greater/smaller elements in O(n).",
+    "complexity": { "time": "O(n) total (each element pushed/popped once)", "space": "O(n)" },
+    "use_cases": ["next greater element", "next smaller element", "stock span problem", "largest rectangle in histogram", "trapping rain water", "daily temperatures"],
+    "key_insight": "Even though there's a nested loop, total push/pop operations across all iterations is O(n) — each element is pushed once and popped once.",
+    "code_template": "# Next Greater Element\ndef next_greater(arr):\n    n = len(arr)\n    result = [-1] * n\n    stack = []  # stores indices\n    for i, val in enumerate(arr):\n        while stack and arr[stack[-1]] < val:\n            idx = stack.pop()\n            result[idx] = val\n        stack.append(i)\n    return result",
+    "tags": ["stack", "monotone", "next-greater", "linear", "advanced"]
+  },
+  {
+    "id": "ds_lru_cache",
+    "title": "LRU Cache",
+    "category": "data_structures",
+    "subcategory": "advanced",
+    "description": "Least Recently Used cache evicts the least recently accessed item when capacity is full. Implemented with a hash map (O(1) lookup) + doubly linked list (O(1) move-to-front and eviction).",
+    "complexity": { "get": "O(1)", "put": "O(1)", "space": "O(capacity)" },
+    "when_to_use": ["cache with bounded memory", "database query cache", "web page cache", "memoisation with eviction"],
+    "key_insight": "Hash map stores key → node pointer. Doubly linked list maintains access order (most recent at head, least recent at tail). On access: move node to head. On eviction: remove tail node.",
+    "python_example": "from functools import lru_cache\n\n# Built-in LRU cache decorator\n@lru_cache(maxsize=128)\ndef expensive_fn(x): ...\n\n# Or collections.OrderedDict for manual implementation",
+    "tags": ["cache", "lru", "hash-map", "linked-list", "advanced"]
+  },
+  {
+    "id": "ds_bloom_filter",
+    "title": "Bloom Filter",
+    "category": "data_structures",
+    "subcategory": "probabilistic",
+    "description": "Space-efficient probabilistic data structure for membership testing. Can have false positives (says 'maybe in set' when not) but never false negatives (says 'not in set' when it is). Uses multiple hash functions and a bit array.",
+    "complexity": { "insert": "O(k) where k = number of hash functions", "query": "O(k)", "space": "O(m) bits (much smaller than exact set)" },
+    "when_to_use": ["avoid expensive disk/network lookups for clearly-absent items", "spam filters", "web crawler URL deduplication", "database query optimisation (avoid reading disk for non-existent keys)"],
+    "when_to_avoid": ["deletions required (standard bloom filters don't support delete)", "zero false positives required (use exact set)"],
+    "tags": ["probabilistic", "bloom-filter", "membership", "space-efficient"]
+  },
+  {
+    "id": "ds_treap_skip_list",
+    "title": "Treap / Skip List",
+    "category": "data_structures",
+    "subcategory": "advanced",
+    "description": "Treap: BST + random priorities maintaining heap property — self-balancing with high probability. Skip list: layered linked list with O(log n) search via express lanes. Both give O(log n) operations with simpler implementation than AVL/red-black trees.",
+    "complexity": { "search": "O(log n) expected", "insert": "O(log n) expected", "delete": "O(log n) expected", "space": "O(n)" },
+    "when_to_use": ["competitive programming where balanced BST is needed", "concurrent data structures (skip lists are more lock-friendly)", "when implementation simplicity matters over constant factors"],
+    "tags": ["treap", "skip-list", "balanced", "probabilistic", "advanced"]
+  }
+]

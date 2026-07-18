@@ -1,0 +1,45 @@
+# Defaults for autonomous Shopify ad campaigns (bot uses these — no Q&A).
+# Secrets go in .env only.
+
+brand:
+  name: "My Store"
+  niche: "general ecommerce"
+  tone: "direct, benefit-first, social-proof heavy"
+  usp: "Quality products with fast shipping"
+  website: ""
+  currency: "USD"
+  target_geo:
+    - "US"
+  languages:
+    - "en"
+
+budget:
+  daily_usd: 25
+  lifetime_cap_usd: 300
+  test_daily_usd: 10
+  currency: "USD"
+
+platforms:
+  meta:
+    enabled: true
+    objective: "OUTCOME_SALES"
+  tiktok:
+    enabled: false
+  google:
+    enabled: false
+
+catalog:
+  max_products: 8
+  exclude_tags: ["draft", "hidden"]
+
+autonomy:
+  # dry_run  = research + plan + write package only
+  # launch   = also create Meta campaigns as PAUSED (needs META_* + ADS_AUTONOMOUS_LAUNCH=1)
+  mode: dry_run
+  research: true
+  max_campaigns: 2
+  max_adsets_per_campaign: 3
+  max_ads_per_adset: 4
+  angles_per_product: 3
+
+output_dir: data/growth/campaigns

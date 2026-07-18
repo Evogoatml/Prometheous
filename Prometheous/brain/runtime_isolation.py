@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """
-Runtime Isolation and Tool Sandboxing for AI Agents
-Addresses critical security gaps in ReAct Agent Action Layer
+Prometheous runtime isolation and tool sandboxing.
 
-Critical Hardening Components:
-1. Containerized execution environments (gVisor/Firecracker)
-2. Capability-based security model
-3. Resource limits and quota enforcement
-4. System call filtering (seccomp)
-5. Network isolation
-6. Filesystem access control
-7. Audit logging and anomaly detection
+Hardens the ReAct/MCP action layer for Prometheous agents:
+  - Capability-based tool access
+  - Threat-level policies (SAFE → CRITICAL)
+  - Docker / namespace / seccomp / process fallbacks
+  - Audit logging and anomaly detection
+
+Entry point: kernel.sandbox.get_sandbox_gate()
 """
 
 import os
@@ -30,10 +28,6 @@ import resource
 import signal
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
 
@@ -283,11 +277,9 @@ class DockerSandbox(SandboxExecutor):
             docker_cmd.extend(['-v', f'{temp_workspace}:{working_dir}'])
         
         # Add security options
-        docker_cmd.extend([
-            '--security-opt', 'no-new-privileges',
-            '--cap-drop', 'ALL',
-            '--cap-add', 'NET_BIND_SERVICE' if self.policy.network_enabled else ''
-        ])
+        docker_cmd.extend(['--security-opt', 'no-new-privileges', '--cap-drop', 'ALL'])
+        if self.policy.network_enabled:
+            docker_cmd.extend(['--cap-add', 'NET_BIND_SERVICE'])
         
         # Set working directory
         docker_cmd.extend(['-w', working_dir])
@@ -539,6 +531,78 @@ class SeccompSandbox(SandboxExecutor):
                 os.remove(profile_path)
 
 
+class ProcessSandbox(SandboxExecutor):
+    """
+    Lightweight subprocess sandbox with resource limits.
+    Default fallback when Docker/unshare are unavailable.
+    """
+
+    def __init__(self, policy: SecurityPolicy):
+        super().__init__(policy, IsolationMethod.NAMESPACE)
+
+    def execute(self, command: str, working_dir: str = None) -> ExecutionResult:
+        cwd = working_dir or tempfile.mkdtemp(prefix="prom_sandbox_")
+        start_time = time.time()
+        violations: List[str] = []
+
+        def _limits():
+            mem = self.policy.max_memory_mb * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
+            resource.setrlimit(
+                resource.RLIMIT_CPU,
+                (self.policy.max_execution_time, self.policy.max_execution_time + 1),
+            )
+            resource.setrlimit(
+                resource.RLIMIT_NPROC,
+                (self.policy.max_processes, self.policy.max_processes),
+            )
+
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=self.policy.max_execution_time,
+                cwd=cwd,
+                preexec_fn=_limits,
+            )
+            elapsed = time.time() - start_time
+            return ExecutionResult(
+                success=result.returncode == 0,
+                output=result.stdout,
+                error=result.stderr,
+                exit_code=result.returncode,
+                execution_time=elapsed,
+                memory_used_mb=0,
+                policy_violations=violations,
+                security_events=[],
+            )
+        except subprocess.TimeoutExpired:
+            violations.append(f"Execution timeout: {self.policy.max_execution_time}s exceeded")
+            return ExecutionResult(
+                success=False,
+                output="",
+                error=f"Timeout after {self.policy.max_execution_time}s",
+                exit_code=-1,
+                execution_time=float(self.policy.max_execution_time),
+                memory_used_mb=0,
+                policy_violations=violations,
+                security_events=[],
+            )
+        except Exception as exc:
+            return ExecutionResult(
+                success=False,
+                output="",
+                error=str(exc),
+                exit_code=-1,
+                execution_time=time.time() - start_time,
+                memory_used_mb=0,
+                policy_violations=violations,
+                security_events=[],
+            )
+
+
 class CapabilityBasedSecurity:
     """
     Capability-based security model for tool access
@@ -638,21 +702,36 @@ class SecureToolWrapper:
         # Get appropriate security policy
         self.policy = SecurityPolicyFactory.get_policy(threat_level)
         
-        # Create sandbox executor
-        if isolation_method == IsolationMethod.DOCKER:
-            self.executor = DockerSandbox(self.policy)
-        elif isolation_method == IsolationMethod.NAMESPACE:
-            self.executor = NamespaceSandbox(self.policy)
-        elif isolation_method == IsolationMethod.SECCOMP:
-            self.executor = SeccompSandbox(self.policy)
-        else:
-            raise ValueError(f"Unknown isolation method: {isolation_method}")
-        
+        # Create sandbox executor (fallback to ProcessSandbox)
+        self.executor = self._build_executor(isolation_method, self.policy)
+
         # Capability manager
         self.capability_manager = CapabilityBasedSecurity()
-        
+
         # Execution history for anomaly detection
         self.execution_history = []
+
+    @staticmethod
+    def _build_executor(method: IsolationMethod, policy: SecurityPolicy):
+        builders = {
+            IsolationMethod.DOCKER: DockerSandbox,
+            IsolationMethod.NAMESPACE: NamespaceSandbox,
+            IsolationMethod.SECCOMP: SeccompSandbox,
+        }
+        cls = builders.get(method, ProcessSandbox)
+        try:
+            executor = cls(policy)
+            if method in (IsolationMethod.DOCKER, IsolationMethod.NAMESPACE):
+                probe = executor.execute("echo prometheous_sandbox_probe")
+                if not probe.success:
+                    err = (probe.error or "").lower()
+                    if "docker" in err or "unshare" in err or "permission" in err:
+                        logger.warning("%s sandbox probe failed, using ProcessSandbox", method.value)
+                        return ProcessSandbox(policy)
+            return executor
+        except Exception as exc:
+            logger.warning("sandbox %s unavailable (%s), using ProcessSandbox", method.value, exc)
+            return ProcessSandbox(policy)
         
     def execute_tool(self, command: str, capability_token: str,
                     required_permission: str = "execute") -> ExecutionResult:
@@ -686,11 +765,10 @@ class SecureToolWrapper:
                 }]
             )
         
-        # Check for anomalies
+        # Check for anomalies (log; PrometheousSandboxGate can block upstream)
         if self._detect_anomaly(command):
-            logger.warning(f"Anomalous command detected: {command[:100]}...")
-            # Could block or flag for review
-        
+            logger.warning("Anomalous command detected: %s...", command[:100])
+
         # Execute in sandbox
         result = self.executor.execute(command)
         

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prometheous.local/schemas/experience.schema.json",
+  "title": "LearningExperience",
+  "description": "Unit observed by LearningStrategy / LearningCoordinator",
+  "type": "object",
+  "required": ["goal", "success", "schema_version"],
+  "properties": {
+    "goal": { "type": "string" },
+    "success": { "type": "boolean" },
+    "agent": { "type": "string" },
+    "output": {},
+    "error": { "type": ["string", "null"] },
+    "duration_s": { "type": "number" },
+    "reward": { "type": "number" },
+    "schema_version": { "type": "string" }
+  }
+}

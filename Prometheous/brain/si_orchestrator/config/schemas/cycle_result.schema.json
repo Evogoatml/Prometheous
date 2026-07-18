@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prometheous.local/schemas/cycle_result.schema.json",
+  "title": "CycleResult",
+  "type": "object",
+  "required": ["goal", "success", "traces"],
+  "properties": {
+    "goal": { "type": "string" },
+    "success": { "type": "boolean" },
+    "agent": { "type": ["string", "null"] },
+    "output": {},
+    "recalled": {
+      "type": "array",
+      "items": { "$ref": "memory_record.schema.json" }
+    },
+    "learning": { "type": "object" },
+    "traces": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "error": { "type": ["string", "null"] }
+  }
+}

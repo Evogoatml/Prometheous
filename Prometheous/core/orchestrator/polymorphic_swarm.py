@@ -1,0 +1,11 @@
+"""
+Compatibility shim.
+
+core/orchestrator.py is a module, so core.orchestrator.* subimports fail.
+Import from core.mosaic instead:
+
+    from core.mosaic import PolymorphicAgentSystem
+"""
+from core.mosaic.polymorphic import PolymorphicAgentSystem
+
+__all__ = ["PolymorphicAgentSystem"]

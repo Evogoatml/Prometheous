@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0.0",
+  "system": {
+    "name": "Prometheous SI Orchestrator",
+    "log_level": "INFO"
+  },
+  "defaults": {
+    "memory": "default",
+    "learning": "default",
+    "symbolic": "default",
+    "agent": "prometheus"
+  },
+  "polyglot": {
+    "host": "python",
+    "perf": "rust",
+    "symbolic": "lisp_lysp",
+    "note": "Phase1: Python host + Py Hopfield + rules; Rust/Lisp stubs ready"
+  },
+  "memory": {
+    "json_path": "data/memory_store.json",
+    "hopfield_dim": 64,
+    "default_backend": "hybrid"
+  },
+  "learning": {
+    "capacity": 256
+  },
+  "plugins": {
+    "memory": [
+      {
+        "name": "default",
+        "class": "si_orchestrator.memory.json_backend.JsonMemoryBackend",
+        "args": { "path": "data/memory_store.json" }
+      },
+      {
+        "name": "hopfield",
+        "class": "si_orchestrator.memory.hopfield_py.HopfieldMemoryBackend",
+        "args": { "dim": 64 }
+      }
+    ],
+    "learning": [
+      {
+        "name": "default",
+        "class": "si_orchestrator.learning.replay.ReplayLearningStrategy",
+        "args": { "capacity": 256 }
+      }
+    ],
+    "symbolic": [
+      {
+        "name": "default",
+        "class": "si_orchestrator.symbolic.rules.RuleSymbolicReasoner",
+        "args": {}
+      }
+    ],
+    "agents": [
+      {
+        "name": "prometheus",
+        "class": "si_orchestrator.agents.prometheus_agent.PrometheusAgent",
+        "args": {}
+      },
+      {
+        "name": "echo",
+        "class": "si_orchestrator.agents.echo_agent.EchoAgent",
+        "args": {}
+      }
+    ]
+  }
+}

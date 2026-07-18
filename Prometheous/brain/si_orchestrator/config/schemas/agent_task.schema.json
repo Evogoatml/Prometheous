@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prometheous.local/schemas/agent_task.schema.json",
+  "title": "AgentTask",
+  "type": "object",
+  "required": ["id", "goal", "schema_version"],
+  "properties": {
+    "id": { "type": "string" },
+    "goal": { "type": "string" },
+    "context": { "type": "object" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "done", "failed"]
+    },
+    "schema_version": { "type": "string" }
+  }
+}

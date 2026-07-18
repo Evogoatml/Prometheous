@@ -1,11 +1,10 @@
-# prometheus/core/matrix.py
+# matrix - Prometheous neuro matrix substrate
 import time
 import json
 from typing import Dict, Any, List, Optional
-from prometheus.memory.quantum_graph import QuantumGraph, QuantumNode
-from prometheus.memory.graph_rag import GraphRAGStore
-from prometheus.memory.vault import EncryptedVault
-from prometheus.memory.conversation import ConversationStore
+from memory.quantum_graph import QuantumGraph, QuantumNode
+from memory.graph_rag import GraphRAGStore
+from core.memory import vault as EncryptedVault, conversations as ConversationStore
 
 
 class NeuroMatrix:

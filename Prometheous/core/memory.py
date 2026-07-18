@@ -153,9 +153,9 @@ class EncryptedVault:
         import base64
         import os as _os
         import secrets as _secrets
-        from utils.config import cfg as _cfg
+        from utils.config import cfg
 
-        self._vault_dir = Path(vault_dir or _cfg.VAULT_DIR)
+        self._vault_dir = Path(vault_dir or cfg.VAULT_DIR)
         self._vault_dir.mkdir(parents=True, exist_ok=True)
         self._key_path = self._vault_dir / ".vault.key"
         self._data_path = self._vault_dir / "vault.enc"

@@ -1,0 +1,49 @@
+version: "1.0"
+description: "Prometheous agent fine-tuning data pipeline"
+
+output_dir: data/learning/finetune
+
+# Target sample counts per split (pipeline scales mix to hit these totals)
+# Increase after `pip install datasets` + `--with-public` for production runs
+splits:
+  train: 200
+  val: 25
+  test: 25
+
+# Source mix — must sum to 1.0
+mix:
+  cogno_native: 0.40       # cognitive substrate (friction, peripheral, dual-brain)
+  public_agenttrove: 0.30  # general multi-step agent traces
+  public_fireact: 0.15     # ReAct tool-use loops
+  session_logs: 0.10       # verified Prometheous run outcomes
+  failure_recovery: 0.05   # DPO-only: bad vs good trajectories
+
+# Public dataset ingestion (optional — requires `pip install datasets`)
+public_datasets:
+  agenttrove:
+    hf_id: open-thoughts/AgentTrove
+    split: train
+    max_samples: 3000
+    text_field: messages
+  fireact:
+    hf_id: fireact/FireAct
+    split: train
+    max_samples: 1500
+    text_field: conversations
+
+# Chat template aligned with config/cognitive_config.yaml
+system_prompt: |
+  You are a Prometheous cognitive agent. Before acting:
+  1. Observe peripheral context beyond the immediate task
+  2. Revise your plan when observations contradict your first thought
+  3. Stop and assess when friction accumulates past threshold
+  4. Coordinate planner and executor roles when tasks span multiple steps
+
+formats:
+  sft: chatml
+  dpo: preference
+
+session_sources:
+  - data/learning/trajectories.jsonl
+  - data/learning/task_memory.json
+  - agent_memory_*/

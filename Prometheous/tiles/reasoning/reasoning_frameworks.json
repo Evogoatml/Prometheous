@@ -1,0 +1,190 @@
+[
+  {
+    "id": "rf_chain_of_thought",
+    "title": "Chain-of-Thought Reasoning",
+    "category": "reasoning",
+    "subcategory": "step_by_step",
+    "description": "Break complex problems into explicit intermediate reasoning steps before producing an answer. Each step builds on the last. Dramatically improves accuracy on multi-step arithmetic, logic, and symbolic reasoning.",
+    "when_to_apply": ["multi-step arithmetic or algebra", "logical deduction problems", "code tracing and debugging", "any problem where intermediate state matters"],
+    "process": [
+      "Restate the problem in your own words to confirm understanding",
+      "Identify what information is given and what is being asked",
+      "Break the solution path into small, verifiable steps",
+      "Work through each step explicitly, showing intermediate values",
+      "Check each step before proceeding to the next",
+      "State the final answer clearly with the reasoning that supports it"
+    ],
+    "example": "Q: If a train travels at 60 mph for 2.5 hours, how far does it go?\nStep 1: distance = speed × time\nStep 2: distance = 60 × 2.5\nStep 3: 60 × 2 = 120, 60 × 0.5 = 30\nStep 4: 120 + 30 = 150\nAnswer: 150 miles",
+    "failure_modes": ["Skipping steps to save time (introduces errors)", "Continuing past a wrong intermediate result", "Not validating answers against common sense"],
+    "tags": ["reasoning", "chain-of-thought", "step-by-step", "accuracy"]
+  },
+  {
+    "id": "rf_decomposition",
+    "title": "Problem Decomposition",
+    "category": "reasoning",
+    "subcategory": "planning",
+    "description": "Divide a complex problem into smaller, independent (or sequentially dependent) sub-problems. Solve each sub-problem, then combine results. Core to divide-and-conquer algorithms and project planning.",
+    "when_to_apply": ["problem has multiple distinct components", "too complex to solve in one cognitive step", "different parts require different skills or agents", "recursive structure (subproblem looks like original)"],
+    "process": [
+      "Identify the overall goal and define success criteria",
+      "Find natural boundaries in the problem (orthogonal concerns, independent subgoals)",
+      "For each subproblem: define inputs, expected output, and constraints",
+      "Map dependencies: which subproblems must complete before others can start",
+      "Solve leaf subproblems first, then combine upward",
+      "Verify the combined solution satisfies the original problem"
+    ],
+    "heuristics": [
+      "Can I solve a smaller version of this problem? Then scale.",
+      "What would need to be true for the answer to be X? Work backwards.",
+      "Are any two parts of this problem completely independent? Parallelise them."
+    ],
+    "tags": ["reasoning", "decomposition", "divide-and-conquer", "planning"]
+  },
+  {
+    "id": "rf_hypothesis_testing",
+    "title": "Hypothesis Formation and Testing",
+    "category": "reasoning",
+    "subcategory": "scientific",
+    "description": "Form a specific, falsifiable hypothesis about the cause of an observation, then design the minimal test that would disprove it. Reject disproved hypotheses and iterate.",
+    "when_to_apply": ["debugging unknown systems", "root cause analysis", "A/B testing", "any empirical investigation"],
+    "process": [
+      "Observe the phenomenon precisely: what, when, where, how often",
+      "Generate candidate hypotheses (at least 3 — avoid anchoring on first idea)",
+      "For each hypothesis: what observable evidence would prove it false?",
+      "Run the cheapest/fastest test that distinguishes between hypotheses",
+      "Update beliefs based on test result — strengthen or eliminate hypotheses",
+      "Repeat until one hypothesis remains and is confirmed by multiple tests"
+    ],
+    "failure_modes": ["Confirming instead of disconfirming (confirmation bias)", "Testing all hypotheses simultaneously (can't isolate cause)", "Stopping after first plausible explanation (may not be the real cause)"],
+    "debugging_application": "Suspect a bug in function X? Write a unit test that calls X in isolation. If it passes, the bug is in the caller or the integration. If it fails, the bug is in X. Now bisect X.",
+    "tags": ["reasoning", "hypothesis", "scientific-method", "debugging", "analysis"]
+  },
+  {
+    "id": "rf_first_principles",
+    "title": "First Principles Thinking",
+    "category": "reasoning",
+    "subcategory": "foundational",
+    "description": "Strip away assumptions and analogies to reason from fundamental truths. Ask 'why is this true?' recursively until you reach axioms. Then rebuild understanding from the ground up.",
+    "when_to_apply": ["challenging conventional wisdom", "choosing between competing approaches", "understanding why something works (not just that it works)", "innovation in well-established fields"],
+    "process": [
+      "State the problem or belief you're examining",
+      "List all assumptions embedded in it",
+      "For each assumption: ask 'Do I know this is true, or did I inherit it?'",
+      "For inherited beliefs: trace back to the actual evidence or reason",
+      "Identify the bedrock facts that cannot be further reduced",
+      "Reconstruct your understanding building only from those facts"
+    ],
+    "example": "Conventional wisdom: 'Rewriting working code is always risky.' First principles: Is the existing code correct? Is it well-tested? Would a rewrite have the same test coverage? Is the risk in the rewrite itself or in inadequate testing of any change?",
+    "tags": ["reasoning", "first-principles", "critical-thinking", "assumptions"]
+  },
+  {
+    "id": "rf_analogy",
+    "title": "Analogical Reasoning",
+    "category": "reasoning",
+    "subcategory": "transfer",
+    "description": "Map structure from a well-understood domain onto a poorly understood one. Valid when the structural relationships (not surface features) are similar. Speeds up understanding and generates solution ideas.",
+    "when_to_apply": ["explaining complex concepts to others", "generating solution ideas by analogy transfer", "understanding unfamiliar systems by analogy to familiar ones"],
+    "process": [
+      "Identify the source domain (well-understood) and target domain (poorly understood)",
+      "List the key relationships and mechanisms in the source domain",
+      "Map each source relationship to the corresponding target relationship",
+      "Check: which mappings hold? Which break down?",
+      "Use the valid mappings to generate hypotheses about the target domain",
+      "Test those hypotheses against actual target domain evidence"
+    ],
+    "good_analogies": ["Memory addresses are like house addresses on a street", "TCP connection is like a phone call (establish connection, transfer data, hang up)", "Cache hit/miss is like finding a book on your desk vs. going to the library"],
+    "failure_modes": ["Over-extending the analogy past where it holds", "Confusing surface similarity with structural similarity", "Using analogies to explain rather than to hypothesise (analogies don't prove)"],
+    "tags": ["reasoning", "analogy", "transfer", "explanation"]
+  },
+  {
+    "id": "rf_inversion",
+    "title": "Inversion / Pre-mortem Thinking",
+    "category": "reasoning",
+    "subcategory": "risk",
+    "description": "Instead of thinking about how to succeed, think about how to fail — then avoid those paths. 'What would need to happen for this to go terribly wrong?' Catches blind spots that forward planning misses.",
+    "when_to_apply": ["project risk assessment", "evaluating whether to proceed with a plan", "finding edge cases and bugs", "identifying assumptions that could collapse"],
+    "process": [
+      "Assume the project/plan/code has failed spectacularly one year from now",
+      "Write down the 5 most likely causes of that failure",
+      "For each cause: how probable is it? How severe? How detectable?",
+      "Design mitigations for the top 3 causes",
+      "Incorporate mitigations into the plan before execution"
+    ],
+    "software_application": "Before shipping code: 'Assume this causes a production outage in 2 weeks. What most likely went wrong?' Common answers: missing input validation, unhandled edge case, race condition under load, dependency failure with no fallback.",
+    "tags": ["reasoning", "inversion", "risk", "pre-mortem", "failure-modes"]
+  },
+  {
+    "id": "rf_rubber_duck",
+    "title": "Rubber Duck Debugging / Externalisation",
+    "category": "reasoning",
+    "subcategory": "debugging",
+    "description": "Explain a problem out loud (or in writing) step-by-step to an imaginary listener. The act of articulating forces you to confront implicit assumptions and usually reveals the error before you finish explaining.",
+    "when_to_apply": ["stuck on a bug after 15+ minutes", "code seems correct but produces wrong output", "unclear why a test is failing", "any problem where you've been staring at the same thing too long"],
+    "process": [
+      "State what the code is supposed to do",
+      "State what it actually does (the exact observed behaviour)",
+      "Walk through the execution step by step out loud",
+      "At each step, state both what you expect and what actually happens",
+      "The mismatch between expectation and reality points to the bug"
+    ],
+    "why_it_works": "Switching from reading code to explaining code activates different cognitive processes. Implicit assumptions become explicit. You often notice the error mid-sentence.",
+    "tags": ["debugging", "externalisation", "rubber-duck", "reasoning"]
+  },
+  {
+    "id": "rf_bayesian_updating",
+    "title": "Bayesian Belief Updating",
+    "category": "reasoning",
+    "subcategory": "probabilistic",
+    "description": "Maintain explicit probability estimates for hypotheses and update them as evidence arrives. Prior × Likelihood ∝ Posterior. Avoids the trap of treating all evidence as equally important.",
+    "when_to_apply": ["diagnostic reasoning (symptoms → disease)", "debugging (observations → bug location)", "evaluating conflicting information sources", "forecasting with partial information"],
+    "process": [
+      "Assign prior probabilities to each competing hypothesis",
+      "Observe new evidence",
+      "For each hypothesis: how likely is this evidence IF the hypothesis is true?",
+      "Multiply prior by likelihood for each hypothesis",
+      "Normalise so probabilities sum to 1 (posterior)",
+      "Repeat as more evidence arrives"
+    ],
+    "practical_shortcut": "If evidence strongly favours hypothesis A, update significantly towards A. If evidence is equally likely under A and B, it provides no discriminating power. Focus investigation on evidence that would be surprising under some hypotheses but not others.",
+    "tags": ["reasoning", "bayesian", "probability", "updating", "evidence"]
+  },
+  {
+    "id": "rf_abstraction_levels",
+    "title": "Reasoning at the Right Abstraction Level",
+    "category": "reasoning",
+    "subcategory": "systems",
+    "description": "Problems are easier to solve at the correct level of abstraction. Thinking too concretely causes you to miss general patterns; too abstractly causes you to miss crucial details. Consciously move between levels.",
+    "when_to_apply": ["choosing data structures or algorithms", "system architecture design", "debugging (is this a local or systemic problem?)", "communication (what level does the audience operate at?)"],
+    "levels": {
+      "concrete": "specific values, exact code, actual hardware",
+      "operational": "function behaviour, module interactions, API contracts",
+      "architectural": "system components, data flows, service boundaries",
+      "conceptual": "domain model, business rules, invariants"
+    },
+    "process": [
+      "Identify what level you're currently thinking at",
+      "Ask: would moving up one level reveal a pattern I'm missing?",
+      "Ask: would moving down one level show a detail that matters here?",
+      "Solve at the cleanest level, then verify the solution holds at adjacent levels"
+    ],
+    "example": "Bug: output is wrong. Concrete level: print every variable. Operational level: which function is the first to produce wrong output? Architectural level: is the problem in data processing or data fetching? Start at operational — it's the fastest to test.",
+    "tags": ["reasoning", "abstraction", "levels", "systems-thinking"]
+  },
+  {
+    "id": "rf_steelmanning",
+    "title": "Steelmanning (Charitable Interpretation)",
+    "category": "reasoning",
+    "subcategory": "critical",
+    "description": "Before criticising an approach, construct the strongest possible version of the argument for it. This ensures you're engaging with the actual best case, not a strawman. Often reveals genuine trade-offs you hadn't considered.",
+    "when_to_apply": ["evaluating competing technical approaches", "code review (before rejecting a solution)", "any design discussion or architectural decision"],
+    "process": [
+      "Identify the approach you're inclined to reject",
+      "List the 3 strongest arguments in its favour",
+      "Identify under what conditions it would be the correct choice",
+      "Now critique it — you'll find real weaknesses rather than imagined ones",
+      "This produces a more accurate trade-off analysis"
+    ],
+    "example": "Inclined to reject microservices for a small team? Steelman: microservices enable independent deployment, separate scaling, and technology flexibility. Under what conditions is this worth the operational overhead? Answer: when teams are large enough that deployment coupling causes friction, or when services have radically different scaling needs.",
+    "tags": ["reasoning", "steelmanning", "critical-thinking", "trade-offs"]
+  }
+]

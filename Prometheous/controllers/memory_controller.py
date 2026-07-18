@@ -1,9 +1,11 @@
 """
-Memory controller — wraps prometheus.memory for agent recall/remember.
+Memory controller — thin wrapper around Prometheous memory layer.
 """
 from typing import Any, Dict, List, Optional
-from prometheus.memory.conversation import ConversationStore, ConversationMemory
-from prometheus.memory.quantum_graph import QuantumGraph
+from memory.conversation import ConversationMemory
+from memory.quantum_graph import QuantumGraph
+# ConversationStore is in core.memory; expose what we can
+from core.memory import conversations as ConversationStore  # best effort
 
 
 class MemoryController:

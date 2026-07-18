@@ -1,0 +1,313 @@
+{
+  "epochs": 5,
+  "scenarios": 10,
+  "baseline_score": 1.0,
+  "final_score": 1.0,
+  "best_score": 1.0,
+  "best_params": {
+    "w_lexical": 1.0,
+    "w_tag": 1.5,
+    "w_coverage": 1.5,
+    "w_recency": 2.0,
+    "w_success": 1.25,
+    "w_fail_penalty": 0.5,
+    "half_life_days": 3.0,
+    "tool_cue_boost": 3.0,
+    "skill_match_weight": 1.0,
+    "name_match_weight": 2.0,
+    "fail_bias_weight": 0.35,
+    "version": "1.0.0",
+    "updated_at": 1784308515.557456,
+    "train_rounds": 13,
+    "best_score": 1.0
+  },
+  "history": [
+    {
+      "epoch": 0,
+      "phase": "baseline",
+      "score": 1.0
+    },
+    {
+      "epoch": 1,
+      "score": 1.0,
+      "candidate_accepted": true,
+      "best_score": 1.0,
+      "sleep": {
+        "status": "ok",
+        "metrics": {
+          "strategy": "replay",
+          "rounds": 11,
+          "buffer_size": 10,
+          "success_rate": 1.0,
+          "failure_agents": {},
+          "last_failures": []
+        },
+        "memory_consolidate": {
+          "long_term": {
+            "before": 247,
+            "after": 247
+          },
+          "associative": {
+            "count": 247,
+            "dim": 64
+          },
+          "ts": 1784308493.4905703,
+          "note": "Phase1 consolidate; sleep cycles in LearningCoordinator"
+        },
+        "ts": 1784308493.4905748
+      }
+    },
+    {
+      "epoch": 2,
+      "score": 1.0,
+      "candidate_accepted": true,
+      "best_score": 1.0,
+      "sleep": {
+        "status": "ok",
+        "metrics": {
+          "strategy": "replay",
+          "rounds": 11,
+          "buffer_size": 10,
+          "success_rate": 1.0,
+          "failure_agents": {},
+          "last_failures": []
+        },
+        "memory_consolidate": {
+          "long_term": {
+            "before": 267,
+            "after": 267
+          },
+          "associative": {
+            "count": 267,
+            "dim": 64
+          },
+          "ts": 1784308498.9673555,
+          "note": "Phase1 consolidate; sleep cycles in LearningCoordinator"
+        },
+        "ts": 1784308498.9673603
+      }
+    },
+    {
+      "epoch": 3,
+      "score": 1.0,
+      "candidate_accepted": true,
+      "best_score": 1.0,
+      "sleep": {
+        "status": "ok",
+        "metrics": {
+          "strategy": "replay",
+          "rounds": 11,
+          "buffer_size": 10,
+          "success_rate": 1.0,
+          "failure_agents": {},
+          "last_failures": []
+        },
+        "memory_consolidate": {
+          "long_term": {
+            "before": 287,
+            "after": 287
+          },
+          "associative": {
+            "count": 287,
+            "dim": 64
+          },
+          "ts": 1784308504.3264842,
+          "note": "Phase1 consolidate; sleep cycles in LearningCoordinator"
+        },
+        "ts": 1784308504.3264887
+      }
+    },
+    {
+      "epoch": 4,
+      "score": 1.0,
+      "candidate_accepted": true,
+      "best_score": 1.0,
+      "sleep": {
+        "status": "ok",
+        "metrics": {
+          "strategy": "replay",
+          "rounds": 11,
+          "buffer_size": 10,
+          "success_rate": 1.0,
+          "failure_agents": {},
+          "last_failures": []
+        },
+        "memory_consolidate": {
+          "long_term": {
+            "before": 307,
+            "after": 307
+          },
+          "associative": {
+            "count": 307,
+            "dim": 64
+          },
+          "ts": 1784308509.763125,
+          "note": "Phase1 consolidate; sleep cycles in LearningCoordinator"
+        },
+        "ts": 1784308509.76313
+      }
+    },
+    {
+      "epoch": 5,
+      "score": 1.0,
+      "candidate_accepted": true,
+      "best_score": 1.0,
+      "sleep": {
+        "status": "ok",
+        "metrics": {
+          "strategy": "replay",
+          "rounds": 11,
+          "buffer_size": 10,
+          "success_rate": 1.0,
+          "failure_agents": {},
+          "last_failures": []
+        },
+        "memory_consolidate": {
+          "long_term": {
+            "before": 327,
+            "after": 327
+          },
+          "associative": {
+            "count": 327,
+            "dim": 64
+          },
+          "ts": 1784308515.5571282,
+          "note": "Phase1 consolidate; sleep cycles in LearningCoordinator"
+        },
+        "ts": 1784308515.557133
+      }
+    }
+  ],
+  "scenario_scores": [
+    {
+      "scenario_id": "self_id",
+      "score": 1.0,
+      "weight": 1.0,
+      "weighted_score": 1.0,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "keywords": 1.0
+      },
+      "agent": "prometheus",
+      "success": true
+    },
+    {
+      "scenario_id": "self_capabilities",
+      "score": 1.0,
+      "weight": 1.0,
+      "weighted_score": 1.0,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "keywords": 1.0
+      },
+      "agent": "prometheus",
+      "success": true
+    },
+    {
+      "scenario_id": "search_hybrid",
+      "score": 1.0,
+      "weight": 1.5,
+      "weighted_score": 1.5,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "tool_hits": 1.0,
+        "path": 1.0
+      },
+      "agent": "tools",
+      "success": true
+    },
+    {
+      "scenario_id": "search_orchestrator",
+      "score": 1.0,
+      "weight": 1.5,
+      "weighted_score": 1.5,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "tool_hits": 1.0,
+        "path": 1.0
+      },
+      "agent": "tools",
+      "success": true
+    },
+    {
+      "scenario_id": "search_tuning",
+      "score": 1.0,
+      "weight": 1.0,
+      "weighted_score": 1.0,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0
+      },
+      "agent": "tools",
+      "success": true
+    },
+    {
+      "scenario_id": "memory_remember",
+      "score": 1.0,
+      "weight": 1.2,
+      "weighted_score": 1.2,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "keywords": 1.0
+      },
+      "agent": "prometheus",
+      "success": true
+    },
+    {
+      "scenario_id": "memory_recall",
+      "score": 1.0,
+      "weight": 1.5,
+      "weighted_score": 1.5,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "keywords": 1.0
+      },
+      "agent": "prometheus",
+      "success": true
+    },
+    {
+      "scenario_id": "analyze_si",
+      "score": 1.0,
+      "weight": 1.0,
+      "weighted_score": 1.0,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0,
+        "keywords": 1.0
+      },
+      "agent": "prometheus",
+      "success": true
+    },
+    {
+      "scenario_id": "list_si_dir",
+      "score": 1.0,
+      "weight": 1.0,
+      "weighted_score": 1.0,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0
+      },
+      "agent": "tools",
+      "success": true
+    },
+    {
+      "scenario_id": "read_readme",
+      "score": 1.0,
+      "weight": 1.2,
+      "weighted_score": 1.2,
+      "parts": {
+        "success": 1.0,
+        "agent": 1.0
+      },
+      "agent": "tools",
+      "success": true
+    }
+  ],
+  "path": "/home/popi/Prometheous/brain/si_orchestrator/data/tuning.json"
+}

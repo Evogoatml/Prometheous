@@ -8,7 +8,7 @@ import hashlib
 from typing import List, Tuple, Optional
 import numpy as np
 import networkx as nx
-from prometheus.config import cfg
+from utils.config import cfg
 
 
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:

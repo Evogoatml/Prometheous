@@ -8,7 +8,7 @@ import os
 import sys
 import importlib
 import time
-from prometheous.state import State
+from utils.state import state as State  # our state; GenesisEngine expects state instance
 
 
 class GenesisEngine:
@@ -57,29 +57,35 @@ class GenesisEngine:
         return True, f"Python {py_version}"
 
     async def _check_dependencies(self):
-        """Check critical imports resolve."""
-        required = ["cryptography", "chromadb", "sentence_transformers", "networkx", "numpy"]
+        """Check critical imports resolve. Some advanced ones are optional."""
+        required = ["cryptography", "numpy"]
+        optional = ["chromadb", "sentence_transformers", "networkx"]
         missing = []
         for pkg in required:
             try:
                 importlib.import_module(pkg)
             except ImportError:
                 missing.append(pkg)
+        for pkg in optional:
+            try:
+                importlib.import_module(pkg)
+            except ImportError:
+                # not fatal for core boot
+                pass
         if missing:
-            return False, f"Missing: {', '.join(missing)}"
-        return True, f"All {len(required)} core packages OK"
+            return False, f"Missing critical: {', '.join(missing)}"
+        return True, "Core packages OK (some advanced optional ones may be missing)"
 
     async def _check_memory_modules(self):
         """Verify all memory subsystems can initialize."""
         modules = {}
         try:
-            from prometheous.memory.vault import EncryptedVault
+            from core.memory import vault as EncryptedVault, conversations as ConversationStore
             modules["vault"] = EncryptedVault
-            from prometheous.memory.conversation import ConversationStore
             modules["conversation"] = ConversationStore
-            from prometheous.memory.quantum_graph import QuantumGraph
+            from memory.quantum_graph import QuantumGraph
             modules["graph"] = QuantumGraph
-            from prometheous.memory.graph_rag import GraphRAGStore
+            from memory.graph_rag import GraphRAGStore
             modules["graph_rag"] = GraphRAGStore
         except Exception as e:
             return False, str(e)

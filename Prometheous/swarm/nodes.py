@@ -37,79 +37,6 @@ class ScannerNode(BaseAgent):
         }
 
 
-class ReconNode(BaseAgent):
-    name = "recon"
-    role = "Recon"
-    specialty = "DNS, WHOIS, OSINT, enumeration"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        target = payload.get("target", "unknown")
-        self.tasks_completed += 1
-        logger.info("recon against %s", target)
-        return {"status": "ok", "agent": self.name, "target": target, "result": {"enumerated": True}}
-
-
-class ExploitNode(BaseAgent):
-    name = "exploit"
-    role = "Exploit"
-    specialty = "vulnerability exploitation"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        target = payload.get("target", "unknown")
-        self.tasks_completed += 1
-        return {"status": "ok", "agent": self.name, "target": target, "result": {"exploited": False, "note": "requires CVE + payload; stub for safety"}}
-
-
-class PrivescNode(BaseAgent):
-    name = "privesc"
-    role = "PrivEsc"
-    specialty = "privilege escalation"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        self.tasks_completed += 1
-        return {"status": "ok", "agent": self.name, "result": {"candidates": [], "note": "stub"}}
-
-
-class PersistNode(BaseAgent):
-    name = "persist"
-    role = "Persist"
-    specialty = "persistence mechanisms"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        self.tasks_completed += 1
-        return {"status": "ok", "agent": self.name, "result": {"mechanisms": [], "note": "stub"}}
-
-
-class PivotNode(BaseAgent):
-    name = "pivot"
-    role = "Pivot"
-    specialty = "lateral movement / pivoting"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        self.tasks_completed += 1
-        return {"status": "ok", "agent": self.name, "result": {"paths": [], "note": "stub"}}
-
-
-class ExfilNode(BaseAgent):
-    name = "exfil"
-    role = "Exfil"
-    specialty = "data exfiltration"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        self.tasks_completed += 1
-        return {"status": "ok", "agent": self.name, "result": {"exfiltrated": False, "note": "stub — use only with explicit authorization"}}
-
-
-class ReportNode(BaseAgent):
-    name = "report"
-    role = "Report"
-    specialty = "report generation"
-
-    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        self.tasks_completed += 1
-        return {"status": "ok", "agent": self.name, "result": {"report": "", "note": "stub"}}
-
-
 class SkillBuilderNode(BaseAgent):
     name = "skill_builder"
     role = "SkillBuilder"
@@ -118,9 +45,6 @@ class SkillBuilderNode(BaseAgent):
     def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         skill_name = payload.get("skill_name", "unnamed_skill")
         self.tasks_completed += 1
-        # The actual creation is delegated to a skill creation tool.
-        # The orchestrator passes this through; for now we return a
-        # structured plan the user-facing gateway can render.
         return {
             "status": "ok",
             "agent": self.name,
@@ -157,13 +81,6 @@ class SkillRunnerNode(BaseAgent):
 # Single list used by main.py to register default agents.
 DEFAULT_NODES = [
     ScannerNode,
-    ReconNode,
-    ExploitNode,
-    PrivescNode,
-    PersistNode,
-    PivotNode,
-    ExfilNode,
-    ReportNode,
     SkillBuilderNode,
     SkillRunnerNode,
 ]

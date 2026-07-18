@@ -1,0 +1,79 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+.venv.bak/
+venv/
+ENV/
+
+# Agent caches (recreated automatically)
+.grok/worktrees/
+
+# Finetune materialized datasets
+data/learning/finetune/*.jsonl
+!data/learning/finetune/manifest.json
+!data/learning/finetune/stream_sources.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# On-demand folder index cache
+data/folder_index/
+data/learning/healing/
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+btc_recovery.db
+cogno_finetune_data.jsonl
+integration_report.json
+
+# Environment variables
+.env
+.env.local
+
+# Compiled assets
+*.so
+*.egg-info/
+dist/
+build/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Test files
+test_*.py
+*_test.py
+
+# Demo
+demo_hotreload.py
+
+# Large data/training directories
+knowledge/training/
+data/
+growth/
+ghost_sentinel/
+learning/
+interfaces/
+kernel/
+docs/
+vortex/
+webhook/
+matrix/linear_algebra/
+.archive/
+
+# Pycache in subdirectories
+**/__pycache__/
+brain/si_orchestrator/data/knowledge_finetune.jsonl

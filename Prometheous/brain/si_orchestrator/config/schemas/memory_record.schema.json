@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prometheous.local/schemas/memory_record.schema.json",
+  "title": "MemoryRecord",
+  "type": "object",
+  "required": ["id", "content", "schema_version"],
+  "properties": {
+    "id": { "type": "string" },
+    "content": { "type": "string" },
+    "kind": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "score": { "type": "number" },
+    "provenance": { "type": "object" },
+    "embedding": {
+      "type": ["array", "null"],
+      "items": { "type": "number" }
+    },
+    "created_at": { "type": "number" },
+    "schema_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}

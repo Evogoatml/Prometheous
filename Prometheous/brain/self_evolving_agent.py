@@ -4,15 +4,14 @@
 import os
 import json
 import time
-from datetime import datetime
+import tempfile
 from typing import Dict, List, Any
 
 
 class SelfEvolvingAgent:
     def __init__(self, name="NeuroForge"):
         self.name = name
-        self.session_dir = f"agent_memory_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        os.makedirs(self.session_dir, exist_ok=True)
+        self.session_dir = tempfile.mkdtemp(prefix="agent_memory_")
 
     def run(self):
         print(f"\n{self.name} — deterministic mode. No LLM decisions.")

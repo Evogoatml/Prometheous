@@ -1,0 +1,17 @@
+{
+  "w_lexical": 1.0,
+  "w_tag": 1.5,
+  "w_coverage": 1.5,
+  "w_recency": 2.0,
+  "w_success": 1.25,
+  "w_fail_penalty": 0.5,
+  "half_life_days": 3.0,
+  "tool_cue_boost": 3.0,
+  "skill_match_weight": 1.0,
+  "name_match_weight": 2.0,
+  "fail_bias_weight": 0.35,
+  "version": "1.0.0",
+  "updated_at": 1784308515.557456,
+  "train_rounds": 13,
+  "best_score": 1.0
+}

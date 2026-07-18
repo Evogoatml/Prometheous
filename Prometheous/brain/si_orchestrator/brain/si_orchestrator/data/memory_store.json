@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "backend": "json",
+  "records": [
+    {
+      "id": "mem-29905e3cf8-71428",
+      "content": "GOAL: print the current working directory\nAGENT: executor\nSUCCESS: True\nOUT: _exec_tmp.py\n",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "executor",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "executor",
+        "task_id": "task-1762f60b05-71428",
+        "cycle": 1,
+        "success": true,
+        "goal": "print the current working directory"
+      },
+      "embedding": null,
+      "created_at": 1784271428.7174428,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "mem-d7f8c2e3c1-71638",
+      "content": "GOAL: print the current working directory\nAGENT: executor\nSUCCESS: True\nOUT: /home/popi/Prometheous/brain/si_orchestrator/workspace\n",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "executor",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "executor",
+        "task_id": "task-d67ac9b3de-71638",
+        "cycle": 1,
+        "success": true,
+        "goal": "print the current working directory"
+      },
+      "embedding": null,
+      "created_at": 1784271638.2722862,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "mem-022ed172da-71638",
+      "content": "GOAL: who are you\nAGENT: prometheus\nSUCCESS: True\nOUT: Prometheus (synthetic agent) · intent=self\nGoal: who are you\nMemory recall:\n  - [3.25] GOAL: print the current working directory\nAGENT: executor\nSUCCESS: True\nOUT: /home/popi/Prometheous/brain/si_orchestrator/workspace\n\n  - [3.25] GOAL: print the current working directory\nAGENT: executor\nSUCCESS: True\nOUT: _exec_tmp.py\n\nSymbolic rules fired:\n  - prefer agent prometheus\nPlan:\n  1. Classify intent (native)\n  2. Recall related episodes from MemoryBackend\n  3. Apply symbolic rules if any fire\n  4. D",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "prometheus",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "prometheus",
+        "task_id": "task-19aebcb707-71638",
+        "cycle": 2,
+        "success": true,
+        "goal": "who are you"
+      },
+      "embedding": null,
+      "created_at": 1784271638.274093,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "mem-ba2f8d4611-71638",
+      "content": "GOAL: list files in /home/popi/Prometheous\nAGENT: tools\nSUCCESS: True\nOUT: {'path': '/home/popi/Prometheous', 'entries': [{'name': '__pycache__', 'type': 'dir'}, {'name': 'agents', 'type': 'dir'}, {'name': 'brain', 'type': 'dir'}, {'name': 'bus', 'type': 'dir'}, {'name': 'controllers', 'type': 'dir'}, {'name': 'core', 'type': 'dir'}, {'name': 'data', 'type': 'dir'}, {'name': 'genesis', 'type': 'dir'}, {'name': 'knowledge', 'type': 'dir'}, {'name': 'llm', 'type': 'dir'}, {'name': 'main.py', 'type': 'file'}, {'name': 'matrix', 'type': 'dir'}, {'name': 'memory', 'type': '",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "tools",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "tools",
+        "task_id": "task-f52858b7ed-71638",
+        "cycle": 3,
+        "success": true,
+        "goal": "list files in /home/popi/Prometheous"
+      },
+      "embedding": null,
+      "created_at": 1784271638.2837381,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "mem-511dbe5701-71659",
+      "content": "GOAL: hello\nAGENT: prometheus\nSUCCESS: True\nOUT: Prometheus (synthetic agent) · intent=generic\nGoal: hello\nMemory recall:\n  - [3.28] GOAL: who are you\nAGENT: prometheus\nSUCCESS: True\nOUT: Prometheus (synthetic agent) · intent=self\nGoal: who are you\nMemory recall:\n  - [3.25] GOAL: print the cu\n  - [3.25] GOAL: list files in /home/popi/Prometheous\nAGENT: tools\nSUCCESS: True\nOUT: {'path': '/home/popi/Prometheous', 'entries': [{'name': '__pycache__', 'type': 'dir'}\n  - [3.25] GOAL: print the current working directory\nAGENT: executor\nSUCCESS: True\n",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "prometheus",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "prometheus",
+        "task_id": "task-60dee5b925-71659",
+        "cycle": 1,
+        "success": true,
+        "goal": "hello"
+      },
+      "embedding": null,
+      "created_at": 1784271659.3069413,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "test1",
+      "content": "test memory",
+      "kind": "episode",
+      "tags": [],
+      "score": 0.0,
+      "provenance": {},
+      "embedding": null,
+      "created_at": 1784271659.309341,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "mem-d24b26cc50-71659",
+      "content": "GOAL: list files in /home/popi/Prometheous\nAGENT: tools\nSUCCESS: True\nOUT: {'path': '/home/popi/Prometheous', 'entries': [{'name': '__pycache__', 'type': 'dir'}, {'name': 'agents', 'type': 'dir'}, {'name': 'brain', 'type': 'dir'}, {'name': 'bus', 'type': 'dir'}, {'name': 'controllers', 'type': 'dir'}, {'name': 'core', 'type': 'dir'}, {'name': 'data', 'type': 'dir'}, {'name': 'genesis', 'type': 'dir'}, {'name': 'knowledge', 'type': 'dir'}, {'name': 'llm', 'type': 'dir'}, {'name': 'main.py', 'type': 'file'}, {'name': 'matrix', 'type': 'dir'}, {'name': 'memory', 'type': '",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "tools",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "tools",
+        "task_id": "task-a52ee46782-71659",
+        "cycle": 2,
+        "success": true,
+        "goal": "list files in /home/popi/Prometheous"
+      },
+      "embedding": null,
+      "created_at": 1784271659.3170679,
+      "schema_version": "1.0.0"
+    },
+    {
+      "id": "mem-cbb4606539-71659",
+      "content": "GOAL: print the current working directory\nAGENT: executor\nSUCCESS: True\nOUT: /home/popi/Prometheous/brain/si_orchestrator/workspace\n",
+      "kind": "episode",
+      "tags": [
+        "cycle",
+        "executor",
+        "success"
+      ],
+      "score": 1.0,
+      "provenance": {
+        "agent": "executor",
+        "task_id": "task-6558e1d3f2-71659",
+        "cycle": 3,
+        "success": true,
+        "goal": "print the current working directory"
+      },
+      "embedding": null,
+      "created_at": 1784271659.4187186,
+      "schema_version": "1.0.0"
+    }
+  ]
+}

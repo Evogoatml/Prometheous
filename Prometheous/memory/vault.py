@@ -3,7 +3,7 @@ import json
 import os
 import secrets
 from typing import Any, Optional
-from prometheus.config import cfg
+from utils.config import cfg
 
 class EncryptedVault:
     def __init__(self, vault_dir: Optional[str] = None):

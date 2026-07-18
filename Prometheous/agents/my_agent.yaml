@@ -1,0 +1,19 @@
+# custom_agents/my_agent.yaml (Extended version)
+apiVersion: titan/v1
+kind: Agent
+metadata:
+  name: senior-researcher
+spec:
+  capabilities:
+    - research
+    - synthesis
+  llm:
+    preferred: claude-sonnet
+  # NEW: Cognitive layer injected via YAML
+  cognitive:
+    superprompt:
+      objective: "Uncover hidden patterns in complex systems"
+    context_field: researcher  # References the key in cognitive_config.yaml
+    memory:
+      holographic: true
+      retention: permanent

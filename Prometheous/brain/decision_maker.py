@@ -1,5 +1,5 @@
 """
-Symbolic decision maker for Agent Byte.
+Symbolic decision maker.
 
 This module makes high-level decisions based on discovered skills and
 current context, without any hard-coded environment knowledge.

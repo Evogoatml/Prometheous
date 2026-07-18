@@ -1,0 +1,12 @@
+[package]
+name = "si_memory"
+version = "0.1.0"
+edition = "2021"
+description = "Phase-2 placeholder: Rust Hopfield / high-perf memory for SI Orchestrator"
+
+[lib]
+name = "si_memory"
+# crate-type = ["cdylib"]  # enable with PyO3 later
+
+[dependencies]
+# pyo3 = { version = "0.22", features = ["extension-module"] }

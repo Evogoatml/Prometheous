@@ -1,8 +1,13 @@
 """
-LLM controller — wraps prometheus.llm.controller for agent use.
+LLM controller — thin wrapper for Prometheous LLM.
+Uses the main llm.client or local llm/controller.
 """
 import subprocess
-from prometheus.llm.controller import LLMController
+# Use the project's llm controller if present, else fallback to client
+try:
+    from llm.controller import LLMController
+except ImportError:
+    from llm.client import llm as LLMController  # fallback shape
 
 
 class AgentLLM:
