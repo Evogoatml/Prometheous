@@ -1,1 +1,1 @@
-"""Prometheous LLM gateway. Pure I/O — no reasoning, no decisions."""
+"""LLM client backends (OpenAI, Grok, Ollama)."""

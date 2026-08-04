@@ -1,1 +1,1 @@
-"""Prometheous utilities."""
+"""Utilities — config, helpers, state management."""

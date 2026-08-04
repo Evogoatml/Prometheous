@@ -1,1 +1,1 @@
-"""Prometheous core — the brain. All reasoning lives here. No LLM."""
+"""Core gateway, orchestrator, decision engine."""

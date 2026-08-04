@@ -1,3 +1,1 @@
-from .registry import TileRegistry
-
-__all__ = ["TileRegistry"]
+"""Specialist tile modules — composable agents."""

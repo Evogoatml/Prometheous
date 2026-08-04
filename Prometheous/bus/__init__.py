@@ -1,3 +1,1 @@
-from .agent_bus import AgentBus, bus
-
-__all__ = ["AgentBus", "bus"]
+"""Agent message bus — pub/sub and event dispatch."""

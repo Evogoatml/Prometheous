@@ -1,3 +1,1 @@
-from .ordinance_client import OrdinanceClient
-
-__all__ = ["OrdinanceClient"]
+"""Ordinance — rules and regulations."""
