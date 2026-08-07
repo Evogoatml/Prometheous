@@ -44,7 +44,7 @@ class AgentLLM:
                                     "content-type": "application/json"
                                 },
                                 json={
-                                    "model": self._controller.model,
+                                    "model": resolve_backend_model("anthropic", getattr(self._controller, "model", "")),
                                     "max_tokens": 4096,
                                     "temperature": temperature,
                                     "messages": [{"role": "user", "content": prompt}]
