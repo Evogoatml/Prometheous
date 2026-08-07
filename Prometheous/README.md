@@ -82,8 +82,8 @@ Required in `.env`:
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
 TELEGRAM_CHAT_ID=123456789
 # Optional LLM (for natural replies)
-OPENAI_API_KEY=sk-...         # or GROK_API_KEY, or use Ollama
-PROM_LLM_MODEL=gpt-4o-mini
+OPENAI_API_KEY=sk-...         # or GROK_API_KEY / ANTHROPIC_API_KEY, or use Ollama
+# PROM_LLM_MODEL is optional; Prometheous picks a provider-appropriate default
 PROM_TELEGRAM_LLM=1
 ```
 
@@ -215,8 +215,9 @@ Boot-time checks:
 
 | Backend | Env Vars | Use Case |
 |---------|----------|----------|
-| OpenAI | `OPENAI_API_KEY`, `PROM_LLM_MODEL` | Default cloud |
-| Grok/xAI | `GROK_API_KEY`, `PROM_LLM_MODEL=grok-2` | Alternative cloud |
+| OpenAI | `OPENAI_API_KEY`, optional `PROM_LLM_MODEL` | Default cloud |
+| Anthropic | `ANTHROPIC_API_KEY`, optional `PROM_LLM_MODEL=claude-*` | Claude fallback |
+| Grok/xAI | `GROK_API_KEY`, optional `PROM_LLM_MODEL=grok-*` | Alternative cloud |
 | Ollama | `OLLAMA_URL`, `OLLAMA_MODEL` | Local/offline |
 
 Only used when `PROM_TELEGRAM_LLM=1`. System works fully without LLM (fallback formatter).

@@ -3,6 +3,7 @@ LLM controller — thin wrapper for Prometheous LLM.
 Uses the main llm.client or local llm/controller.
 """
 import subprocess
+from llm.model_resolver import resolve_backend_model
 # Use the project's llm controller if present, else fallback to client
 try:
     from llm.controller import LLMController
@@ -58,7 +59,7 @@ class AgentLLM:
             # Fallback: Ollama subprocess
             try:
                 result = subprocess.run(
-                    ["ollama", "run", "llama3.2", prompt.strip()],
+                    ["ollama", "run", resolve_backend_model("ollama", getattr(self._controller, "model", "")), prompt.strip()],
                     capture_output=True, text=True, timeout=60
                 )
                 return result.stdout.strip()
@@ -69,7 +70,7 @@ class AgentLLM:
             import subprocess
             try:
                 result = subprocess.run(
-                    ["ollama", "run", "llama3.2", prompt.strip()],
+                    ["ollama", "run", resolve_backend_model("ollama", getattr(self._controller, "model", "")), prompt.strip()],
                     capture_output=True, text=True, timeout=60
                 )
                 return result.stdout.strip()
