@@ -4,6 +4,8 @@ import json
 import subprocess
 from typing import Dict, Any
 
+from llm.model_resolver import resolve_backend_model
+
 
 class LLMController:
     """One LLM gateway.
@@ -12,7 +14,7 @@ class LLMController:
     system should do.
     """
 
-    def __init__(self, model: str = "claude-sonnet-4-6"):
+    def __init__(self, model: str = ""):
         self.model = model
         self.api_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.grok_api_key = os.getenv("GROK_API_KEY") or os.getenv("XAI_API_KEY", "")
@@ -31,7 +33,7 @@ class LLMController:
                             "content-type": "application/json"
                         },
                         json={
-                            "model": self.model,
+                            "model": resolve_backend_model("anthropic", self.model),
                             "max_tokens": 4096,
                             "temperature": temperature,
                             "messages": [{"role": "user", "content": prompt}]
@@ -48,7 +50,7 @@ class LLMController:
                 import urllib.request
                 import json
                 body = json.dumps({
-                    "model": self.model or "grok-beta",
+                    "model": resolve_backend_model("grok", self.model),
                     "max_tokens": 4096,
                     "temperature": temperature,
                     "messages": [{"role": "user", "content": prompt}]
@@ -70,7 +72,7 @@ class LLMController:
         # Fallback: Ollama
         try:
             result = subprocess.run(
-                ["ollama", "run", "llama3.2", prompt],
+                ["ollama", "run", resolve_backend_model("ollama", self.model), prompt],
                 capture_output=True,
                 text=True,
                 timeout=60

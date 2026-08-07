@@ -17,15 +17,17 @@ import os
 from typing import Dict, List
 
 from llm.backends.base import Backend
+from llm.backends.anthropic import AnthropicBackend
 from llm.backends.openai import OpenAIBackend
 from llm.backends.grok import GrokBackend
 from llm.backends.ollama import OllamaBackend
+from llm.model_resolver import resolve_backend_model
 
 logger = logging.getLogger(__name__)
 
 # Default ordering if env vars don't specify one. OpenAI is preferred when
 # a real key is set; Ollama is the always-available local fallback.
-DEFAULT_ORDER = ("openai", "grok", "ollama")
+DEFAULT_ORDER = ("openai", "anthropic", "grok", "ollama")
 
 
 def _cfg_openai_key() -> str:
@@ -45,11 +47,19 @@ def _cfg_grok_key() -> str:
 
 
 def _cfg_model() -> str:
+    for key in ("PROM_LLM_MODEL", "LLM_MODEL"):
+        value = os.getenv(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _cfg_anthropic_key() -> str:
     try:
         from utils.config import cfg
-        return getattr(cfg, "LLM_MODEL", "") or os.getenv("PROM_LLM_MODEL", "")
+        return getattr(cfg, "ANTHROPIC_API_KEY", "") or os.getenv("ANTHROPIC_API_KEY", "")
     except Exception:
-        return os.getenv("PROM_LLM_MODEL", "")
+        return os.getenv("ANTHROPIC_API_KEY", "")
 
 
 def _cfg_timeout() -> int:
@@ -58,12 +68,28 @@ def _cfg_timeout() -> int:
 
 def build_backends() -> Dict[str, Backend]:
     """Return a fresh dict of name->Backend, picking up current config."""
-    model = _cfg_model()
+    requested = _cfg_model()
     timeout = _cfg_timeout()
     return {
-        "openai": OpenAIBackend(api_key=_cfg_openai_key(), model=model, timeout=timeout),
-        "grok":   GrokBackend(api_key=_cfg_grok_key(), model=model, timeout=timeout),
-        "ollama": OllamaBackend(model=os.getenv("OLLAMA_MODEL", "") or model, timeout=timeout),
+        "openai": OpenAIBackend(
+            api_key=_cfg_openai_key(),
+            model=resolve_backend_model("openai", requested),
+            timeout=timeout,
+        ),
+        "anthropic": AnthropicBackend(
+            api_key=_cfg_anthropic_key(),
+            model=resolve_backend_model("anthropic", requested),
+            timeout=timeout,
+        ),
+        "grok": GrokBackend(
+            api_key=_cfg_grok_key(),
+            model=resolve_backend_model("grok", requested),
+            timeout=timeout,
+        ),
+        "ollama": OllamaBackend(
+            model=resolve_backend_model("ollama", requested),
+            timeout=timeout,
+        ),
     }
 
 

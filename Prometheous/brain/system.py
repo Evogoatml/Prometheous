@@ -23,10 +23,12 @@ for p in (_ROOT, _BRAIN):
 
 logger = logging.getLogger("prometheous.system")
 
+from llm.model_resolver import resolve_backend_model
+
 
 class SystemConfig:
     llm_provider: str = "ollama"
-    llm_model: str = "llama3"
+    llm_model: str = ""
     ollama_base_url: str = "http://localhost:11434"
     anthropic_api_key: str = ""
     log_level: str = "INFO"
@@ -35,7 +37,7 @@ class SystemConfig:
 def load_config() -> SystemConfig:
     config = SystemConfig()
     config.llm_provider = os.environ.get("LLM_PROVIDER", "ollama")
-    config.llm_model = os.environ.get("LLM_MODEL", "llama3")
+    config.llm_model = os.environ.get("PROM_LLM_MODEL") or os.environ.get("LLM_MODEL", "")
     config.ollama_base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
     config.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     config.log_level = os.environ.get("LOG_LEVEL", "INFO")
@@ -67,7 +69,11 @@ async def _call_ollama(config: SystemConfig, prompt: str, system_prompt: str) ->
     import urllib.request
     url = f"{config.ollama_base_url}/api/generate"
     full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-    payload = json.dumps({"model": config.llm_model, "prompt": full_prompt, "stream": False}).encode()
+    payload = json.dumps({
+        "model": resolve_backend_model("ollama", config.llm_model),
+        "prompt": full_prompt,
+        "stream": False,
+    }).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=120) as resp:
         return json.loads(resp.read().decode()).get("response", "")
@@ -77,7 +83,7 @@ async def _call_anthropic(config: SystemConfig, prompt: str, system_prompt: str)
     import urllib.request
     url = "https://api.anthropic.com/v1/messages"
     body = json.dumps({
-        "model": config.llm_model or "claude-sonnet-4-20250514",
+        "model": resolve_backend_model("anthropic", config.llm_model),
         "max_tokens": 4096,
         "system": system_prompt,
         "messages": [{"role": "user", "content": prompt}],
