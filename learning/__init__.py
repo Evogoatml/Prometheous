@@ -7,4 +7,5 @@ __all__ = [
     "task_memory",
     "trajectory",
     "user_behavior",
+    "continuous_improver",
 ]

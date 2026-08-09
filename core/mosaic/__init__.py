@@ -10,8 +10,19 @@ A mosaic is a temporary composition of capability tiles that:
 
 This is the spine of Prometheous synthetic intelligence — not a chat wrapper.
 """
-from core.mosaic.runtime import MosaicRuntime, MosaicResult, get_mosaic
-from core.mosaic.polymorphic import PolymorphicAgentSystem
+from __future__ import annotations
+
+try:
+    from core.mosaic.runtime import MosaicRuntime, MosaicResult, get_mosaic
+except Exception:
+    MosaicRuntime = None
+    MosaicResult = None
+    get_mosaic = None
+
+try:
+    from core.mosaic.polymorphic import PolymorphicAgentSystem
+except Exception:
+    PolymorphicAgentSystem = None
 
 __all__ = [
     "MosaicRuntime",
