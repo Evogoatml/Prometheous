@@ -15,11 +15,12 @@ except Exception as e:
 
 # Exercise more brain files on import
 try:
-    from brain import autonode_adapter, decision_maker, CNN
+    from brain import autonode_adapter, decision_maker, backend
 except Exception:
     pass
 try:
-    from brain import runtime_isolation, user_behavior
+    from brain import runtime_isolation
+    from learning import user_behavior
 except Exception:
     pass
 
