@@ -122,7 +122,7 @@ class CentralNeuralBackend:
             with open(filepath, 'rb') as f:
                 hasher.update(f.read())
             return hasher.hexdigest()
-        except:
+        except Exception:
             return None
 
 

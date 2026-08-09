@@ -5,4 +5,6 @@ __all__ = [
     "curriculum",
     "optimizer",
     "task_memory",
-    "trajectory",]
+    "trajectory",
+    "user_behavior",
+]
