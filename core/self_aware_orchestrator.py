@@ -689,3 +689,60 @@ def get_orchestrator() -> SelfAwareOrchestrator:
 def orchestrator() -> SelfAwareOrchestrator:
     """Alias for get_orchestrator()."""
     return get_orchestrator()
+
+
+
+class MetaReasoningEngine:
+    """Recursive reasoning quality analysis for reflection traces."""
+
+    def reflect_on_reflection(self, traces: List[Dict[str, Any]]) -> Dict[str, Any]:
+        blind_spots: Dict[str, int] = {}
+        incompleteness_scores: List[float] = []
+        for trace in traces or []:
+            for spot in self.identify_blind_spots(trace):
+                blind_spots[spot] = blind_spots.get(spot, 0) + 1
+            incompleteness_scores.append(self.estimate_incompleteness(trace))
+        ranked = sorted(blind_spots.items(), key=lambda item: item[1], reverse=True)
+        avg_incomplete = round(sum(incompleteness_scores) / len(incompleteness_scores), 4) if incompleteness_scores else 0.0
+        return {
+            "blind_spots": [name for name, _ in ranked],
+            "blind_spot_counts": dict(ranked),
+            "average_incompleteness": avg_incomplete,
+        }
+
+    def identify_blind_spots(self, trace: Dict[str, Any]) -> List[str]:
+        trace_text = json.dumps(trace or {}, ensure_ascii=False).lower()
+        checks = {
+            "constraints": ["constraint", "budget", "deadline"],
+            "verification": ["verify", "test", "check"],
+            "alternatives": ["alternative", "option", "fallback"],
+            "risks": ["risk", "failure", "tradeoff"],
+            "user_intent": ["goal", "intent", "user"],
+        }
+        return [topic for topic, markers in checks.items() if not any(marker in trace_text for marker in markers)]
+
+    def estimate_incompleteness(self, result: Dict[str, Any]) -> float:
+        if not result:
+            return 1.0
+        expected = ["goal", "result", "analysis", "alternatives", "verification"]
+        missing = 0
+        for key in expected:
+            value = result.get(key)
+            if value in (None, "", [], {}):
+                missing += 1
+        return round(min(1.0, missing / len(expected)), 4)
+
+    def meta_reason(self, goal: str, previous_reasoning: Dict[str, Any]) -> Dict[str, Any]:
+        blind_spots = self.identify_blind_spots(previous_reasoning)
+        incompleteness = self.estimate_incompleteness(previous_reasoning)
+        suggestions = []
+        for spot in blind_spots:
+            suggestions.append(f"add reasoning about {spot}")
+        if incompleteness > 0.5:
+            suggestions.append("gather more evidence before finalizing")
+        return {
+            "goal": goal,
+            "blind_spots": blind_spots,
+            "incompleteness": incompleteness,
+            "next_steps": suggestions or ["reasoning appears sufficiently covered"],
+        }

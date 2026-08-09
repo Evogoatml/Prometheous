@@ -386,6 +386,106 @@ def bootstrap() -> None:
     except Exception as e:
         print("[bootstrap] Ghost Sentinel:", str(e)[:120])
 
+
+    # 12. Architecture enhancements bootstrap
+    try:
+        from core.planning import HierarchicalPlanner
+        orchestrator.planner = HierarchicalPlanner()
+        print("[bootstrap] HierarchicalPlanner online")
+    except Exception as e:
+        print(f"[bootstrap] HierarchicalPlanner: {str(e)[:80]}")
+    
+    try:
+        from core.verification import VerificationLayer
+        orchestrator.verifier = VerificationLayer()
+        print("[bootstrap] VerificationLayer online")
+    except Exception as e:
+        print(f"[bootstrap] VerificationLayer: {str(e)[:80]}")
+    
+    try:
+        from core.reasoning import ReasoningRecorder
+        orchestrator.reasoning = ReasoningRecorder()
+        print("[bootstrap] ReasoningRecorder online")
+    except Exception as e:
+        print(f"[bootstrap] ReasoningRecorder: {str(e)[:80]}")
+    
+    try:
+        from core.constraints import ConstraintSolver
+        orchestrator.constraint_solver = ConstraintSolver()
+        print("[bootstrap] ConstraintSolver online")
+    except Exception as e:
+        print(f"[bootstrap] ConstraintSolver: {str(e)[:80]}")
+    
+    try:
+        from core.consensus import AgentConsensus
+        orchestrator.consensus = AgentConsensus()
+        print("[bootstrap] AgentConsensus online")
+    except Exception as e:
+        print(f"[bootstrap] AgentConsensus: {str(e)[:80]}")
+    
+    try:
+        from learning.continuous_improver import ContinuousImprover
+        orchestrator.improver = ContinuousImprover()
+        print("[bootstrap] ContinuousImprover online")
+    except Exception as e:
+        print(f"[bootstrap] ContinuousImprover: {str(e)[:80]}")
+    
+    try:
+        from core.world_model import WorldModel
+        orchestrator.world_model = WorldModel()
+        print("[bootstrap] WorldModel online")
+    except Exception as e:
+        print(f"[bootstrap] WorldModel: {str(e)[:80]}")
+    
+    try:
+        from agents.skill_composer import SkillComposer
+        orchestrator.skill_composer = SkillComposer()
+        print("[bootstrap] SkillComposer online")
+    except Exception as e:
+        print(f"[bootstrap] SkillComposer: {str(e)[:80]}")
+    
+    try:
+        from core.testing import AdversarialTester
+        orchestrator.adversarial_tester = AdversarialTester()
+        print("[bootstrap] AdversarialTester online")
+    except Exception as e:
+        print(f"[bootstrap] AdversarialTester: {str(e)[:80]}")
+    
+    try:
+        from core.budget import BudgetController
+        orchestrator.budget = BudgetController()
+        print("[bootstrap] BudgetController online")
+    except Exception as e:
+        print(f"[bootstrap] BudgetController: {str(e)[:80]}")
+    
+    try:
+        from core.observability import Telemetry
+        orchestrator.telemetry = Telemetry()
+        print("[bootstrap] Telemetry online")
+    except Exception as e:
+        print(f"[bootstrap] Telemetry: {str(e)[:80]}")
+    
+    try:
+        from core.self_aware_orchestrator import MetaReasoningEngine
+        orchestrator.meta_reasoner = MetaReasoningEngine()
+        print("[bootstrap] MetaReasoningEngine online")
+    except Exception as e:
+        print(f"[bootstrap] MetaReasoningEngine: {str(e)[:80]}")
+    
+    try:
+        from core.feedback import FeedbackLoop
+        orchestrator.feedback = FeedbackLoop()
+        print("[bootstrap] FeedbackLoop online")
+    except Exception as e:
+        print(f"[bootstrap] FeedbackLoop: {str(e)[:80]}")
+    
+    try:
+        from core.mosaic.parallel import DAGExecutor
+        orchestrator.dag_executor = DAGExecutor()
+        print("[bootstrap] DAGExecutor (parallel mosaic) online")
+    except Exception as e:
+        print(f"[bootstrap] DAGExecutor: {str(e)[:80]}")
+
     print("[bootstrap] FULL SYSTEM READY — agents:", ", ".join(sorted(orchestrator.list_agents())))
 
 
