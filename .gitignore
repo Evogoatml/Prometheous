@@ -60,18 +60,9 @@ test_*.py
 # Demo
 demo_hotreload.py
 
-# Large data/training directories
+# Large data/training directories (runtime state, not source code)
 knowledge/training/
 data/
-growth/
-ghost_sentinel/
-learning/
-interfaces/
-kernel/
-docs/
-vortex/
-webhook/
-matrix/linear_algebra/
 .archive/
 
 # Pycache in subdirectories
