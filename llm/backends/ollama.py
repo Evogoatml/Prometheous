@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional, Sequence
 
 from llm.backends.base import Backend, is_live, cooldown_remaining
+from utils.config import cfg
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class OllamaBackend(Backend):
     name = "ollama"
 
     def __init__(self, url: str = "", model: str = "", timeout: int = 30):
-        self.url = (url or os.getenv("OLLAMA_URL", "http://localhost:11434")).rstrip("/")
+        self.url = (url or cfg.OLLAMA_URL).rstrip("/")
         self.model = model
         self.timeout = timeout
 
@@ -38,7 +38,7 @@ class OllamaBackend(Backend):
         from llm.client import PROMETHEOUS_SYSTEM_PROMPT
         from llm.conversation import build_messages
 
-        model = self.model or "llama3.2"
+        model = self.model or cfg.LLM_MODEL
         messages = build_messages(
             PROMETHEOUS_SYSTEM_PROMPT,
             user_msg,

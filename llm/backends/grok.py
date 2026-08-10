@@ -9,6 +9,7 @@ import urllib.request
 from typing import Any, Dict, Optional, Sequence
 
 from llm.backends.base import Backend, is_live, cooldown_remaining
+from utils.config import cfg
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class GrokBackend(Backend):
             history=history,
         )
         # Slightly higher budget for real conversation
-        max_tokens = 700 if (system_output or {}).get("mode") in ("chat", "greet") else 500
+        max_tokens = cfg.LLM_MAX_TOKENS_CHAT if (system_output or {}).get("mode") in ("chat", "greet") else cfg.LLM_MAX_TOKENS_TASK
         body = json.dumps({
             "model": self.model,
             "max_tokens": max_tokens,

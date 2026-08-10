@@ -94,7 +94,7 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
     },
     {
         "name": "shell.run",
-        "description": "Run an allow-listed shell command",
+        "description": "Run an allow-listed shell command (any command when PROM_FULL_OS_ACCESS=1)",
         "parameters": {
             "type": "object",
             "properties": {

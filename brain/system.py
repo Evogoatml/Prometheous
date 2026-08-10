@@ -24,12 +24,13 @@ for p in (_ROOT, _BRAIN):
 logger = logging.getLogger("prometheous.system")
 
 from llm.model_resolver import resolve_backend_model
+from utils.config import cfg
 
 
 class SystemConfig:
     llm_provider: str = "ollama"
     llm_model: str = ""
-    ollama_base_url: str = "http://localhost:11434"
+    ollama_base_url: str = cfg.OLLAMA_URL
     anthropic_api_key: str = ""
     log_level: str = "INFO"
 
@@ -38,7 +39,7 @@ def load_config() -> SystemConfig:
     config = SystemConfig()
     config.llm_provider = os.environ.get("LLM_PROVIDER", "ollama")
     config.llm_model = os.environ.get("PROM_LLM_MODEL") or os.environ.get("LLM_MODEL", "")
-    config.ollama_base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+    config.ollama_base_url = os.environ.get("OLLAMA_BASE_URL") or cfg.OLLAMA_URL
     config.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     config.log_level = os.environ.get("LOG_LEVEL", "INFO")
     return config

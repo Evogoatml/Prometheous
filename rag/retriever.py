@@ -78,7 +78,7 @@ def _get_embedding(text: str) -> Optional[np.ndarray]:
     else:
         try:
             import urllib.request
-            url = os.getenv("OLLAMA_URL", "http://localhost:11434") + "/api/embeddings"
+            url = cfg.OLLAMA_URL + "/api/embeddings"
             body = json.dumps({"model": model, "prompt": text[:4000]}).encode()
             req = urllib.request.Request(url, data=body, headers={"content-type": "application/json"})
             with urllib.request.urlopen(req, timeout=30) as resp:

@@ -1,8 +1,12 @@
 """
 Project-root sandbox for MCP filesystem and shell tools.
+
+Set PROM_FULL_OS_ACCESS=1 to lift the allowlist and project-root restriction so
+shell.run can execute any command anywhere on the OS.
 """
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import subprocess
@@ -10,6 +14,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
+
+FULL_OS_ACCESS = os.getenv("PROM_FULL_OS_ACCESS", "").lower() in ("1", "true", "yes")
 
 _SHELL_META: Dict[str, Dict[str, Any]] = {
     "pwd": {"max_args": 0},
@@ -58,6 +64,19 @@ def resolve_project_path(path: str, *, must_exist: bool = False) -> Tuple[Option
 def resolve_project_cwd(cwd: str = "") -> Tuple[Path, Optional[str]]:
     if not cwd:
         return ROOT.resolve(), None
+    if FULL_OS_ACCESS:
+        raw = (cwd or "").strip().strip("`\"'")
+        if not raw:
+            return ROOT.resolve(), None
+        if _META_CHARS.search(raw):
+            return ROOT.resolve(), "path contains shell/meta characters"
+        p = Path(raw)
+        if not p.is_absolute():
+            p = Path(os.getcwd()) / p
+        p = p.resolve(strict=False)
+        if not p.is_dir():
+            return ROOT.resolve(), "cwd is not a directory"
+        return p, None
     resolved, err = resolve_project_path(cwd, must_exist=True)
     if err:
         return ROOT.resolve(), err
@@ -85,6 +104,19 @@ def build_shell_argv(command: str) -> Tuple[Optional[List[str]], Optional[str]]:
 
     base = argv[0]
     meta = _SHELL_META.get(base)
+
+    if FULL_OS_ACCESS:
+        # Unrestricted mode: still argv-based (no shell metacharacters), but
+        # any executable is allowed and no path gets rewritten into ROOT.
+        if base.startswith("/"):
+            return argv, None
+        from shutil import which
+        resolved = which(base)
+        if resolved is None:
+            return None, f"command not found: {base}"
+        argv[0] = resolved
+        return argv, None
+
     if meta is None:
         allowed = ", ".join(sorted(_SHELL_META))
         return None, f"command not allowed: {base}. Allowed: {allowed}"

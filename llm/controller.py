@@ -5,6 +5,7 @@ import subprocess
 from typing import Dict, Any
 
 from llm.model_resolver import resolve_backend_model
+from utils.config import cfg
 
 
 class LLMController:
@@ -63,7 +64,7 @@ class LLMController:
                         "Content-Type": "application/json"
                     }
                 )
-                with urllib.request.urlopen(req, timeout=60) as resp:
+                with urllib.request.urlopen(req, timeout=cfg.LLM_TIMEOUT) as resp:
                     data = json.loads(resp.read().decode())
                     return data["choices"][0]["message"]["content"]
             except Exception as e:
@@ -75,7 +76,7 @@ class LLMController:
                 ["ollama", "run", resolve_backend_model("ollama", self.model), prompt],
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=cfg.LLM_TIMEOUT
             )
             return result.stdout.strip()
         except Exception as e:

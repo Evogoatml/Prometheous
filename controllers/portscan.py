@@ -22,7 +22,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import shutil
 import socket
 import subprocess
@@ -31,9 +30,11 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Common ports used when caller does not specify — kept consistent with the
-# default list the scanner agent already uses.
-DEFAULT_PORTS = [22, 80, 443, 8080, 3389, 5900, 3306, 5432, 6379, 27017, 8443]
+from utils.config import cfg
+
+# Common ports used when caller does not specify — sourced from cfg.SCAN_PORTS
+# (env PROM_SCAN_PORTS) so there is a single source of truth.
+DEFAULT_PORTS = list(cfg.SCAN_PORTS)
 
 # Best-guess service name per port. Used as a fallback when banner grab fails.
 WELL_KNOWN_SERVICES = {
@@ -182,7 +183,7 @@ def _run_nmap(host: str, ports: List[int]) -> List[Dict[str, Any]]:
     cmd = ["nmap", "-sT", "-Pn", "-n", "--max-retries", "1", "--host-timeout", "20s",
            "-p", ",".join(str(p) for p in ports), "-oX", "-", host]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=cfg.SCAN_TIMEOUT)
         if r.returncode != 0 and not r.stdout:
             raise RuntimeError(f"nmap failed: {r.stderr[:200]}")
         return _parse_nmap(r.stdout)
@@ -194,7 +195,7 @@ def _run_nmap(host: str, ports: List[int]) -> List[Dict[str, Any]]:
 def _run_naabu(host: str, ports: List[int]) -> List[Dict[str, Any]]:
     cmd = ["naabu", "-host", host, "-p", ",".join(str(p) for p in ports), "-silent", "-json", "-nmap-cli", "false"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=cfg.SCAN_TIMEOUT)
         out: List[Dict[str, Any]] = []
         for line in r.stdout.splitlines():
             line = line.strip()
@@ -220,7 +221,7 @@ def _run_naabu(host: str, ports: List[int]) -> List[Dict[str, Any]]:
 def _run_masscan(host: str, ports: List[int]) -> List[Dict[str, Any]]:
     cmd = ["masscan", "-p", ",".join(str(p) for p in ports), host, "--rate", "1000", "-oJ", "-"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=cfg.SCAN_TIMEOUT + 30)
         out: List[Dict[str, Any]] = []
         for line in r.stdout.splitlines():
             line = line.strip().rstrip(",")

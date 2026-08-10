@@ -27,13 +27,15 @@ import asyncio
 import json
 import logging
 import os
+import shlex
 import subprocess
 import sys
-import tempfile
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from utils.config import cfg
 
 logger = logging.getLogger(__name__)
 
@@ -109,13 +111,20 @@ class PerformanceMetrics:
 # SANDBOXED EXECUTION
 # ─────────────────────────────────────────────────────────────────────────────
 
+_SHELL_ALLOWLIST = {
+    "pwd", "whoami", "id", "uname", "date", "hostname", "ls", "cat",
+    "head", "tail", "grep", "find", "echo", "which", "curl",
+    "git", "python", "python3", "nmap", "masscan", "naabu",
+}
+
+
 class SandboxExecutor:
     """Execute Python and shell code in isolated subprocess."""
 
-    def __init__(self, workspace: Optional[Path] = None, timeout: int = 60):
+    def __init__(self, workspace: Optional[Path] = None, timeout: int = 0):
         self.workspace = Path(workspace or Path.home() / ".prometheous" / "workspace")
         self.workspace.mkdir(parents=True, exist_ok=True)
-        self.timeout = timeout
+        self.timeout = timeout or cfg.SHELL_TIMEOUT
         self.execution_log: List[Dict[str, Any]] = []
 
     def execute_python(self, code: str, env_vars: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
@@ -155,18 +164,51 @@ class SandboxExecutor:
                     pass
 
     def execute_shell(self, command: str, env_vars: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        """Execute shell command in sandbox."""
+        """Execute shell command as an argv list (no shell metacharacter eval).
+
+        Unrestricted (PROM_FULL_OS_ACCESS=1) allows any executable found on
+        PATH. Otherwise a allowlist restricts which binaries may run. Shell
+        metacharacters (`|`, `;`, `&`, `$`, `<`, `>`) are always rejected.
+        """
+        raw = (command or "").strip()
+        if not raw:
+            return {"success": False, "error": "empty command", "exit_code": -1, "stdout": "", "stderr": ""}
+        if any(ch in raw for ch in ";|&$<>"):
+            return {"success": False, "error": "shell metacharacters not allowed", "exit_code": -1, "stdout": "", "stderr": ""}
+        try:
+            argv = shlex.split(raw)
+        except ValueError as e:
+            return {"success": False, "error": f"invalid command: {e}", "exit_code": -1, "stdout": "", "stderr": ""}
+        if not argv:
+            return {"success": False, "error": "empty command", "exit_code": -1, "stdout": "", "stderr": ""}
+
+        unrestricted = os.getenv("PROM_FULL_OS_ACCESS", "").lower() in ("1", "true", "yes")
+        base = argv[0]
+        if not unrestricted:
+            if base not in _SHELL_ALLOWLIST:
+                return {
+                    "success": False,
+                    "error": f"command not allowed: {base}. Allowed: {', '.join(sorted(_SHELL_ALLOWLIST))}",
+                    "exit_code": -1, "stdout": "", "stderr": "",
+                }
+        elif not base.startswith("/"):
+            from shutil import which
+            resolved = which(base)
+            if resolved is None:
+                return {"success": False, "error": f"command not found: {base}", "exit_code": -1, "stdout": "", "stderr": ""}
+            argv[0] = resolved
+
         try:
             env = os.environ.copy()
             if env_vars:
                 env.update(env_vars)
             result = subprocess.run(
-                command,
+                argv,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
                 cwd=str(self.workspace),
-                shell=True,
+                shell=False,
                 env=env,
             )
             output = {
@@ -250,7 +292,7 @@ class SkillBuilder:
                 import importlib
                 mod_name = f"agents.{skill.name}"
                 importlib.import_module(mod_name)
-                logger.info("skill verified: %s", skill_name)
+                logger.info("skill verified: %s", skill.name)
                 return True
             except Exception as e:
                 logger.warning("skill import verification failed: %s", e)
@@ -303,36 +345,122 @@ class SkillBuilder:
         return [w for w, _ in Counter(words).most_common(5)]
 
     def _synthesize_code(self, skill_name: str, goal: str, context: Dict[str, Any]) -> str:
-        """Generate Python code for the skill."""
-        # Basic template; in production, would use LLM or advanced heuristics
-        code = f'''
-"""Auto-generated skill: {skill_name}"""
+        """Generate real, working handler code for the skill (no placeholders)."""
+        g = goal.lower()
+        if any(k in g for k in ("run", "execute", "bash", "shell", "command")):
+            return self._shell_skill_template(skill_name, goal)
+        if any(k in g for k in ("scan", "nmap", "port")):
+            return self._scan_skill_template(skill_name, goal)
+        if any(k in g for k in ("write", "create", "build", "generate", "file")):
+            return self._write_skill_template(skill_name, goal)
+        return self._echo_skill_template(skill_name, goal)
+
+    @staticmethod
+    def _shell_skill_template(skill_name: str, goal: str) -> str:
+        timeout = cfg.SHELL_TIMEOUT
+        return f'''"""
+Auto-generated skill: {skill_name}
+Goal: {goal}
+"""
+import shlex
+import subprocess
 from typing import Dict, Any
 
+
 def {skill_name}_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generated handler for: {goal}
-    
-    Common agents: {', '.join(context.get('common_agents', []))}
-    """
-    user_msg = payload.get('user_msg', '')
-    goal = payload.get('goal', '')
-    
-    # TODO: Replace with real implementation
-    # Learning context from past successes:
-    # - {len(context.get('success_examples', []))} successful examples
-    # - {len(context.get('failure_examples', []))} failure patterns to avoid
-    
+    command = payload.get("command") or payload.get("cmd") or payload.get("user_msg", "")
+    if not command:
+        return {{"status": "ok", "result": "no command supplied; pass payload['command']"}}
+    argv = shlex.split(command)
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout={timeout})
     return {{
         "status": "ok",
-        "result": f"Executed skill {skill_name}",
-        "goal": goal,
+        "result": {{
+            "command": command,
+            "returncode": proc.returncode,
+            "stdout": proc.stdout[-4000:],
+            "stderr": proc.stderr[-2000:],
+        }},
     }}
-'''
-        return code.strip()
+'''.strip()
+
+    @staticmethod
+    def _scan_skill_template(skill_name: str, goal: str) -> str:
+        default_ports = list(cfg.SCAN_PORTS)
+        return f'''"""
+Auto-generated skill: {skill_name}
+Goal: {goal}
+"""
+from typing import Any, Dict
+
+
+def {skill_name}_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
+    target = payload.get("target") or payload.get("host") or "localhost"
+    ports = payload.get("ports") or {default_ports!r}
+    try:
+        from controllers.portscan import sync_scan
+        results = sync_scan(target, ports)
+    except Exception as exc:
+        return {{"status": "failed", "result": {{"error": str(exc)}}}}
+    open_ports = [r for r in results if r.get("status") == "open"]
+    return {{
+        "status": "ok",
+        "result": {{
+            "target": target,
+            "open_ports": open_ports,
+            "open_count": len(open_ports),
+            "results": results,
+        }},
+    }}
+'''.strip()
+
+    @staticmethod
+    def _write_skill_template(skill_name: str, goal: str) -> str:
+        return f'''"""
+Auto-generated skill: {skill_name}
+Goal: {goal}
+"""
+from pathlib import Path
+from typing import Any, Dict
+
+
+def {skill_name}_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
+    path = payload.get("path") or payload.get("file")
+    content = payload.get("content") or payload.get("data") or ""
+    if not path:
+        return {{"status": "ok", "result": "no path supplied; pass payload['path']"}}
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content if isinstance(content, str) else str(content), encoding="utf-8")
+    return {{"status": "ok", "result": {{"path": str(p), "bytes": p.stat().st_size}}}}
+'''.strip()
+
+    @staticmethod
+    def _echo_skill_template(skill_name: str, goal: str) -> str:
+        return f'''"""
+Auto-generated skill: {skill_name}
+Goal: {goal}
+"""
+from typing import Any, Dict
+
+
+def {skill_name}_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
+    result = {{
+        "intent": "handled by generated skill {skill_name}",
+        "goal": payload.get("goal", {goal!r}),
+        "echo": payload.get("user_msg", ""),
+    }}
+    return {{"status": "ok", "result": result}}
+'''.strip()
 
     def _wrap_agent(self, skill: AgentSkill) -> str:
         """Wrap skill code in a BaseAgent class."""
+        import re
+        class_name = re.sub(r"[^0-9a-zA-Z_]", "_", skill.name.title())
+        class_name = re.sub(r"_+", "_", class_name).strip("_")
+        if not class_name or class_name[0].isdigit():
+            class_name = f"Skill_{class_name}" if class_name else "AutoSkill"
+        class_name = f"{class_name}Agent"
         return f'''"""
 Auto-generated agent skill: {skill.name}
 Category: {skill.category}
@@ -344,7 +472,7 @@ from typing import Dict, Any
 
 {skill.code}
 
-class {skill.name.title()}Agent(BaseAgent):
+class {class_name}(BaseAgent):
     name = "{skill.name}"
     role = "{skill.name.replace('_', ' ').title()}"
     specialty = "{skill.description}"
@@ -394,6 +522,8 @@ class SelfAwareOrchestrator:
         self.execution_traces: List[ExecutionTrace] = []
         self.agent_registry: Dict[str, Any] = {}
         self.skills: Dict[str, AgentSkill] = {}
+        self._agent_performance: Dict[str, Dict[str, int]] = {}
+        self._saved_traces = 0
         
         # Learning
         self._trajectory_file = self.workspace / "trajectories.jsonl"
@@ -443,6 +573,9 @@ class SelfAwareOrchestrator:
 
             # 8. OPTIMIZE: Adjust future behavior
             self._optimize_composition(composition, result)
+
+            # Persist metrics + trajectories so restarts resume cleanly
+            self._save_state()
 
             elapsed_ms = (time.time() - t0) * 1000
             logger.info("[%s] completed in %.0fms (status=%s)", task_id, elapsed_ms, result.get("status"))
@@ -539,6 +672,8 @@ class SelfAwareOrchestrator:
     def _parse_intent(self, goal: str) -> str:
         """Classify the user intent."""
         g = goal.lower()
+        if any(x in g for x in ("scan", "nmap", "port", "recon", "vuln", "cve")):
+            return "scan"
         if any(x in g for x in ("run", "execute", "bash", "shell")):
             return "execute_shell"
         if any(x in g for x in ("write", "create", "build", "generate")):
@@ -563,19 +698,28 @@ class SelfAwareOrchestrator:
         return "Could optimize with new skill"
 
     def _assemble_mosaic(self, goal: str, intent: str, similar: List[ExecutionTrace]) -> List[str]:
-        """Assemble agent composition based on goal and history."""
-        # Start with common agents from similar tasks
+        """Assemble agent composition based on goal, history, and learned winners."""
+        # Start with observed high-performers, then common agents from similar tasks
         agents = []
+        agents.extend(self._top_agents(2))
         if similar:
-            agents = self.skill_builder._extract_common_agents([t for t in similar])
+            for a in self.skill_builder._extract_common_agents([t for t in similar]):
+                if a not in agents:
+                    agents.append(a)
         
         # Add specialized agents based on intent
         if intent == "execute_shell":
-            agents.append("executor")
+            if "executor" not in agents:
+                agents.append("executor")
         elif intent == "generate_code":
-            agents.append("skill_builder")
+            if "skill_builder" not in agents:
+                agents.append("skill_builder")
         elif intent == "self_improve":
-            agents.append("learner")
+            if "learner" not in agents:
+                agents.append("learner")
+        elif intent == "scan":
+            if "scanner" not in agents:
+                agents.append("scanner")
         
         # Fallback to task agent
         if not agents:
@@ -584,18 +728,56 @@ class SelfAwareOrchestrator:
         return agents[:5]  # Max 5 agents per composition
 
     def _execute_composition(self, task_id: str, goal: str, composition: List[str], payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute the assembled mosaic."""
-        # For now, mock execution; would dispatch to actual agents
+        """Execute the assembled mosaic against the real agent registry."""
         logger.info("[%s] executing: %s", task_id, composition)
-        
-        # Simulate agent dispatch
-        time.sleep(0.1)
-        
+
+        agent_results = []
+        for agent_name in composition:
+            agent_results.append(self._dispatch_one(task_id, agent_name, payload))
+
+        ok = all(r.get("status") == "ok" for r in agent_results)
         return {
-            "status": "ok",
-            "result": f"Executed {len(composition)} agents",
+            "status": "ok" if ok else "failed",
+            "result": f"Executed {len(agent_results)} agents",
             "agents_run": composition,
+            "agent_results": agent_results,
         }
+
+    def _dispatch_one(self, task_id: str, agent_name: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve `agent_name` to a registered agent and execute it.
+
+        Checks the core orchestrator registry first, then the swarm orb.
+        """
+        agent = None
+        try:
+            from core.orchestrator import orchestrator as core_orb
+            agent = core_orb.get_agent(agent_name)
+        except Exception:
+            pass
+        if agent is None:
+            try:
+                from swarm.orchestrator import orb
+                agent = orb.get(agent_name)
+            except Exception:
+                pass
+        if agent is None:
+            logger.warning("[%s] no agent registered: %s", task_id, agent_name)
+            return {"status": "failed", "agent": agent_name, "error": f"no agent registered: {agent_name}"}
+
+        try:
+            if hasattr(agent, "execute"):
+                result = agent.execute(payload)
+            elif hasattr(agent, "run"):
+                result = agent.run(payload)
+            else:
+                result = {"status": "noop", "reason": "agent has no execute/run"}
+        except Exception as exc:
+            logger.exception("[%s] agent %s raised", task_id, agent_name)
+            result = {"status": "failed", "agent": agent_name, "error": str(exc)}
+
+        result.setdefault("agent", agent_name)
+        result.setdefault("result", result.get("result") or result.get("message"))
+        return result
 
     def _record_trace(self, task_id: str, goal: str, intent: str, composition: List[str], 
                      payload: Dict[str, Any], result: Dict[str, Any]) -> ExecutionTrace:
@@ -633,9 +815,42 @@ class SelfAwareOrchestrator:
         return None
 
     def _optimize_composition(self, composition: List[str], result: Dict[str, Any]) -> None:
-        """Adjust composition strategy based on result."""
-        # TODO: ML-based optimizer
-        pass
+        """Update per-agent success weights so future assemblies prefer winners."""
+        for ar in result.get("agent_results", []):
+            name = ar.get("agent")
+            if not name:
+                continue
+            perf = self._agent_performance.setdefault(name, {"ok": 0, "total": 0})
+            perf["total"] += 1
+            if ar.get("status") == "ok":
+                perf["ok"] += 1
+        self._save_tuning()
+
+    def _save_tuning(self) -> None:
+        """Persist per-agent performance to the workspace tuning file."""
+        try:
+            ranking = self._top_agents(10)
+            (self.workspace / "tuning.json").write_text(
+                json.dumps({
+                    "agent_performance": self._agent_performance,
+                    "top_agents": ranking,
+                    "ts": time.time(),
+                }, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            logger.warning("failed to save tuning: %s", exc)
+
+    def _top_agents(self, limit: int = 5) -> List[str]:
+        """Rank agents by observed success rate, preferring higher volume."""
+        scored = []
+        for name, perf in self._agent_performance.items():
+            if perf["total"] == 0:
+                continue
+            rate = perf["ok"] / perf["total"]
+            scored.append((rate, perf["total"], name))
+        scored.sort(key=lambda t: (t[0], t[1]), reverse=True)
+        return [name for _, _, name in scored[:limit]]
 
     def _recommend_next_action(self) -> str:
         """Suggest next optimization step."""
@@ -658,16 +873,36 @@ class SelfAwareOrchestrator:
                 self.metrics = PerformanceMetrics(**data)
             except Exception as e:
                 logger.warning("failed to load metrics: %s", e)
+        if self._trajectory_file.exists():
+            try:
+                lines = [ln for ln in self._trajectory_file.read_text().splitlines() if ln.strip()]
+                for line in lines:
+                    try:
+                        self.execution_traces.append(ExecutionTrace(**json.loads(line)))
+                    except Exception:
+                        continue
+                self._saved_traces = len(self.execution_traces)
+            except Exception as e:
+                logger.warning("failed to load trajectories: %s", e)
+        tuning_file = self.workspace / "tuning.json"
+        if tuning_file.exists():
+            try:
+                data = json.loads(tuning_file.read_text())
+                self._agent_performance = data.get("agent_performance", {})
+            except Exception as e:
+                logger.warning("failed to load tuning: %s", e)
 
     def _save_state(self) -> None:
-        """Persist state."""
+        """Persist state (metrics + incremental trajectory append)."""
         try:
             self._metrics_file.write_text(json.dumps(self.metrics.to_dict(), indent=2))
             self._trajectory_file.parent.mkdir(parents=True, exist_ok=True)
-            # Append traces (JSONL)
-            with open(self._trajectory_file, "a") as f:
-                for trace in self.execution_traces[-100:]:  # Keep recent
-                    f.write(json.dumps(trace.to_dict()) + "\n")
+            pending = self.execution_traces[self._saved_traces:]
+            if pending:
+                with open(self._trajectory_file, "a", encoding="utf-8") as f:
+                    for trace in pending:
+                        f.write(json.dumps(trace.to_dict()) + "\n")
+                self._saved_traces = len(self.execution_traces)
         except Exception as e:
             logger.warning("failed to save state: %s", e)
 

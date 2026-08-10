@@ -14,19 +14,32 @@ import time
 import importlib
 from pathlib import Path
 
-# Load .env very early (API keys like TELEGRAM_BOT_TOKEN, GROK_API_KEY live here)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
 # Make project root importable when run from anywhere.
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+# Load .env very early (API keys like TELEGRAM_BOT_TOKEN, GROK_API_KEY live here).
+# Always load from the project root so it works regardless of the cwd.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=False)
+except ImportError:
+    # Fallback: parse .env manually if python-dotenv isn't installed.
+    try:
+        for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except OSError:
+        pass
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Telegram is mandatory: fail fast instead of silent degraded mode.
 if not os.getenv("TELEGRAM_BOT_TOKEN"):
@@ -323,9 +336,10 @@ def bootstrap() -> None:
     # 8b. Brain knowledge — always ready on start (build index if missing)
     try:
         from brain.knowledge_store import brain_knowledge
+        from brain.build_ability_knowledge import TRAINING
 
         stats = brain_knowledge.load()
-        if not stats.get("online") or int(stats.get("count") or 0) == 0:
+        if (not stats.get("online") or int(stats.get("count") or 0) == 0) and TRAINING.is_dir():
             print("[bootstrap] Brain knowledge empty — building full index on start…")
             from brain.build_ability_knowledge import build as build_brain
 

@@ -9,7 +9,6 @@ deterministic split on conjunctions if the LLM is unavailable.
 Registered with `tiles.registry.TileRegistry` on import (key: "superagi").
 """
 import json
-import os
 import re
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -22,7 +21,9 @@ try:
 except Exception:
     LLMClient = None
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+from utils.config import cfg
+
+OLLAMA_URL = cfg.OLLAMA_URL
 
 
 class SuperAGIAgent(BaseAgent):

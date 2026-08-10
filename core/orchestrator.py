@@ -44,7 +44,7 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 try:
-    from learning import learner
+    from learning.learner import learner
 except Exception:
     learner = None
 

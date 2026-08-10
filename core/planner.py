@@ -21,6 +21,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from utils.config import cfg
+
 logger = logging.getLogger(__name__)
 
 
@@ -135,7 +137,7 @@ _KEYWORD_RULES: List[tuple] = [
     (re.compile(r"\b(scan|port[- ]?scan|nmap)\b.*\b([\w.\-]+)\b", re.I),
      "dispatch", "scanner",
      "Run port scan on {target}",
-     lambda m: {"target": m.group(2), "ports": [22, 80, 443, 8080, 3306, 5432, 6379]}),
+     lambda m: {"target": m.group(2), "ports": list(cfg.SCAN_PORTS)}),
     (re.compile(r"\b(search|look up|find out|what is|who is|when did)\b", re.I),
      "dispatch", "web_search",
      "Search the web for: {goal}",

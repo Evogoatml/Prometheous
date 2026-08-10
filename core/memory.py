@@ -7,11 +7,18 @@ Prometheous memory — conversations, knowledge, snapshots.
 """
 import json
 import logging
-import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+try:
+    import sqlite3 as _sqlite3
+except ImportError:  # Python built without _sqlite3 (e.g. some 3.13/3.14 builds)
+    try:
+        import pysqlite3 as _sqlite3  # pysqlite3-binary is in requirements.txt
+    except ImportError:
+        _sqlite3 = None
 
 from utils.config import cfg
 from utils.helpers import generate_id, timestamp
@@ -75,9 +82,11 @@ class KnowledgeBase:
     """
 
     def __init__(self, db_path: Optional[str] = None):
+        if _sqlite3 is None:
+            raise RuntimeError("sqlite3 unavailable (install pysqlite3-binary)")
         self.db_path = db_path or cfg.SQLITE_PATH
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self._conn = _sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.execute(
             """CREATE TABLE IF NOT EXISTS facts (
                 id TEXT PRIMARY KEY,

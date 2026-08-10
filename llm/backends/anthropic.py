@@ -8,6 +8,7 @@ import urllib.request
 from typing import Any, Dict, Optional, Sequence
 
 from llm.backends.base import Backend, cooldown_remaining, is_live
+from utils.config import cfg
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
@@ -48,7 +49,7 @@ class AnthropicBackend(Backend):
         if messages and messages[0].get("role") == "system":
             system_prompt = messages[0].get("content", "")
             messages = messages[1:]
-        max_tokens = 700 if (system_output or {}).get("mode") in ("chat", "greet") else 500
+        max_tokens = cfg.LLM_MAX_TOKENS_CHAT if (system_output or {}).get("mode") in ("chat", "greet") else cfg.LLM_MAX_TOKENS_TASK
         body = json.dumps({
             "model": self.model,
             "max_tokens": max_tokens,

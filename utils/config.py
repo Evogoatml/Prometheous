@@ -52,6 +52,27 @@ class Config:
         int(x) for x in os.getenv("TELEGRAM_ALLOWED_CHAT_IDS", "").split(",") if x.strip()
     ]
 
+    # OS access
+    # When true, shell.run runs ANY command anywhere on the OS (no allowlist,
+    # no project-root restriction). Defaults to the safe sandbox.
+    FULL_OS_ACCESS = os.getenv("PROM_FULL_OS_ACCESS", "").lower() in ("1", "true", "yes")
+
+    # Scanning defaults (single source of truth for scan ports/timeouts)
+    SCAN_PORTS: tuple = tuple(
+        int(x) for x in os.getenv(
+            "PROM_SCAN_PORTS", "22,80,443,8080,3389,5900,3306,5432,6379,27017,8443"
+        ).split(",") if x.strip()
+    )
+    SCAN_TIMEOUT = int(os.getenv("PROM_SCAN_TIMEOUT", "60"))
+    SHELL_TIMEOUT = int(os.getenv("PROM_SHELL_TIMEOUT", "60"))
+
+    # Ollama
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
+    # LLM output budgets
+    LLM_MAX_TOKENS_CHAT = int(os.getenv("PROM_LLM_MAX_TOKENS_CHAT", "700"))
+    LLM_MAX_TOKENS_TASK = int(os.getenv("PROM_LLM_MAX_TOKENS_TASK", "500"))
+
     # Swarm / mission fleets
     SWARM_MAX_PARALLEL = int(os.getenv("PROM_SWARM_MAX_PARALLEL", "16"))
     SWARM_TASK_TIMEOUT = int(os.getenv("PROM_SWARM_TASK_TIMEOUT", "120"))
