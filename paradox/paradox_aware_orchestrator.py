@@ -12,7 +12,7 @@ import time
 try:
     import importlib
     adaptive_paradox = importlib.import_module(
-        "paradox.adaptive ctms.paradox_aware_orchestrator"
+        "paradox.adaptive_ctms.paradox_aware_orchestrator"
     )
 except Exception:
     adaptive_paradox = None

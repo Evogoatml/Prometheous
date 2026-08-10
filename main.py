@@ -138,7 +138,7 @@ except Exception:
 
 try:
     import bus.knowledge_system
-    import core.orchestrator.polymorphic_swarm
+    import core.orchestrator_v2.polymorphic_swarm
 except Exception:
     pass
 

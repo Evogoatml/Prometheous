@@ -149,6 +149,16 @@ class TaskAgent:
                     }
                 )
 
+        # 1b) Goal too vague to act on → ask, don't fabricate a plan file
+        if not self._actionable(goal):
+            steps.append({"step": "clarify", "reason": "goal not actionable"})
+            return self._ok(
+                goal=goal,
+                steps=steps,
+                summary=self._clarify_message(goal),
+                deliverables=[],
+            )
+
         # 2) Multi-step autonomous plan → execute
         plan = self._plan(goal)
         steps.append(
@@ -380,7 +390,7 @@ class TaskAgent:
         )
         docy = bool(
             re.search(
-                r"\b(?:plan|write|draft|document|brief|checklist|strategy|outline|proposal|report)\b",
+                r"\b(?:plan|write|draft|document|brief|checklist|strategy|outline|proposal|report|analy[sz]e|audit|review|summari[sz]e)\b",
                 g,
             )
             and not codey
@@ -682,7 +692,7 @@ class TaskAgent:
             "",
             goal.strip(),
             "",
-            "## Action plan",
+            "## Approach",
             "",
         ]
 
@@ -702,7 +712,7 @@ class TaskAgent:
                 if snippet:
                     lines.append(f"   - {snippet}")
         else:
-            lines.append("_No web results — plan is rule-based from the goal text._")
+            lines.append("_No web results; the steps above were derived from the goal._")
 
         lines += [
             "",
@@ -731,9 +741,77 @@ class TaskAgent:
 
         return "\n".join(lines) + "\n"
 
+    def _derive_steps(self, goal: str) -> List[str]:
+        """Concrete, goal-derived steps — never generic filler."""
+        g = goal.lower()
+        if re.search(r"\b(?:scan|recon|nmap|port\s*scan)\b", g):
+            return [
+                "Define scope: targets and port list (from config).",
+                "Run the scan (async TCP / nmap / masscan auto-selected).",
+                "Record open ports and detected services.",
+                "Report findings with the raw evidence.",
+            ]
+        if re.search(r"\b(?:build|create|write|implement|make|generate|code|script|scaffold)\b", g):
+            return [
+                "Pin down the exact artifact and its path.",
+                "Produce the file/script with a working implementation.",
+                "Run or syntax-check it.",
+                "Report where it landed.",
+            ]
+        if re.search(r"\b(?:analy[sz]e|audit|review|report|summarize)\b", g):
+            return [
+                "Gather the relevant inputs (files, code, or search results).",
+                "Extract the concrete findings.",
+                "Write the result to a markdown deliverable.",
+            ]
+        if re.search(r"\b(?:search|find|look\s+up|research|what|how|why)\b", g):
+            return [
+                "Run a web search for the topic.",
+                "Pull the top sources and their key points.",
+                "Write a sourced summary deliverable.",
+            ]
+        if re.search(r"\b(?:install|setup|deploy|run|start|launch)\b", g):
+            return [
+                "Resolve the exact command or config to act on.",
+                "Execute it and capture output.",
+                "Verify it succeeded and report results.",
+            ]
+        return [
+            "Identify the concrete deliverable you want (file, scan, search, or command).",
+            "Produce it and verify.",
+            "Report the result and where it lives.",
+        ]
+
+    def _actionable(self, goal: str) -> bool:
+        """True when the goal implies concrete work we can actually start."""
+        g = goal.lower()
+        if self._match_specialist(goal):
+            return True
+        if self._infer_output_path(goal):
+            return True
+        if re.search(
+            r"\b(?:create|write|build|implement|generate|draft|produce|"
+            r"fix|scaffold|run|execute|read|open|analy[sz]e|audit|review|summarize|"
+            r"scan|search|find|look\s+up|research|explain|report|deploy|install|"
+            r"setup|plan|design|script|module|function|class)\b",
+            g,
+        ):
+            return True
+        return bool(re.search(r"\b(?:how|what|why|which|when|where)\b", g))
+
+    def _clarify_message(self, goal: str) -> str:
+        return (
+            f'Goal "{goal[:200]}" is too vague to act on yet, so I won\'t fabricate a '
+            "plan file for it. Give me one concrete instruction and I'll get to work:\n\n"
+            '  • "Analyze the codebase and write the findings to a file"\n'
+            '  • "Scan localhost and report open ports"\n'
+            '  • "Create <path>/script.py that does X"\n'
+            '  • "Search the web for <topic> and save a summary"\n'
+            '  • "Run <command> and show me the output"'
+        )
+
     def _action_plan_bullets(self, goal: str, results: list) -> List[str]:
         g = goal.lower()
-        bullets: List[str] = []
         if "store" in g or "ecommerce" in g or "shop" in g or "launch" in g:
             bullets = [
                 "1. **Positioning** — define niche, offer, and primary buyer persona.",
@@ -743,21 +821,9 @@ class TaskAgent:
                 "5. **Measurement** — pixel/CAPI or analytics events on purchase.",
                 "6. **Launch week** — soft launch → collect feedback → iterate creatives.",
             ]
-        elif "plan" in g or "strategy" in g:
-            bullets = [
-                "1. Clarify success metric and deadline.",
-                "2. Inventory assets already available.",
-                "3. Sequence work into week-1 / week-2 blocks.",
-                "4. Assign owners (or solo timeboxes).",
-                "5. Define kill/scale criteria.",
-            ]
         else:
             bullets = [
-                f"1. Restate goal: {goal[:160]}",
-                "2. Gather constraints and inputs.",
-                "3. Produce the smallest useful artifact.",
-                "4. Verify (run, read, or checklist).",
-                "5. Iterate from feedback.",
+                f"{i + 1}. {step}" for i, step in enumerate(self._derive_steps(goal))
             ]
         if results:
             bullets.append(
@@ -774,11 +840,7 @@ class TaskAgent:
                 "Ship one acquisition experiment this week",
                 "Review first 10 orders or signups for friction",
             ]
-        return [
-            f"Complete primary deliverable for: {goal[:100]}",
-            "Validate with a concrete check (run, publish, or review)",
-            "Log outcome and next revision",
-        ]
+        return self._derive_steps(goal)[:3]
 
     def _minimal_actionable_doc(self, goal: str, steps: list) -> str:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -979,6 +1041,10 @@ class TaskAgent:
             "competitor",
             "learn",
             "explain",
+            "analy",
+            "audit",
+            "review",
+            "summar",
             "launch",
         )
         if any(t in g for t in triggers):
