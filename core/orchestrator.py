@@ -24,6 +24,10 @@ from utils.helpers import generate_id, payload_hash
 # Skip agents that have external side effects or mutate state.
 _CACHE_MAX = int(os.environ.get("PROM_DISPATCH_CACHE_MAX", "256"))
 _CACHE_TTL_S = float(os.environ.get("PROM_DISPATCH_CACHE_TTL", "300"))
+
+# How often (in completed tasks) to run a ContinuousImprover cycle.
+# Set <= 0 to disable.
+_IMPROVER_INTERVAL = int(os.environ.get("PROM_IMPROVER_INTERVAL", "25"))
 _SKIP_CACHE_AGENTS = frozenset({
     "telegram", "skill_runner", "skill_builder", "task", "task_agent",
     "mcp_tools", "ghost_sentinel", "growth", "mission", "mosaic",
@@ -172,6 +176,23 @@ class Orchestrator:
                 verifier.record_result(task.task_id, vr)
             except Exception:
                 logger.debug("verification failed", exc_info=True)
+
+    def _maybe_run_improver(self) -> None:
+        """Periodically run ContinuousImprover.run_cycle() — same cadence
+        pattern as learner.auto_tune() below. improver.run_cycle() reads
+        data/learning/trajectories.jsonl (already populated by
+        record_trajectory) and writes data/learning/improver_report.json;
+        it never mutates task state, so this is safe to call opportunistically.
+        """
+        improver = getattr(self, "improver", None)
+        if improver is None or _IMPROVER_INTERVAL <= 0:
+            return
+        if state.total_tasks_completed % _IMPROVER_INTERVAL != 0:
+            return
+        try:
+            improver.run_cycle()
+        except Exception:
+            logger.debug("continuous improver cycle failed", exc_info=True)
 
     # agent registry -------------------------------------------------------
     def register_agent(self, name: str, agent: Any) -> None:
@@ -371,6 +392,7 @@ class Orchestrator:
                 except Exception:
                     logger.debug("trajectory record failed", exc_info=True)
             state.total_tasks_completed += 1
+            self._maybe_run_improver()
             if bus:
                 try:
                     bus.publish_sync("task.done", {"task_id": task.task_id, "status": task.status, "agent": task.agent}, source="orchestrator")
@@ -445,6 +467,7 @@ class Orchestrator:
             except Exception:
                 pass
         state.total_tasks_completed += 1
+        self._maybe_run_improver()
 
 
 # Single shared instance
