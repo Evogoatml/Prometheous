@@ -8,6 +8,7 @@ Responsibilities:
   - Update utils.state so restarts resume correctly
   - NOT call the LLM. The LLM is called only by the gateway.
 """
+import json
 import logging
 import os
 import time
@@ -119,6 +120,58 @@ class Orchestrator:
             "hits": self._cache_hits,
             "misses": self._cache_misses,
         }
+
+    # observability / verification hooks ------------------------------------
+    # main.py's bootstrap() attaches these onto the shared `orchestrator`
+    # instance (self.telemetry, self.reasoning, self.budget, self.verifier);
+    # they're optional so getattr() with a None default keeps this safe when
+    # a given module failed to load at boot.
+    def _obs_start(self, intent: str):
+        span = None
+        trace_id = None
+        telemetry = getattr(self, "telemetry", None)
+        if telemetry is not None:
+            try:
+                span = telemetry.start_span(intent)
+            except Exception:
+                logger.debug("telemetry start_span failed", exc_info=True)
+        reasoning = getattr(self, "reasoning", None)
+        if reasoning is not None:
+            try:
+                trace_id = reasoning.start_trace(intent)
+            except Exception:
+                logger.debug("reasoning start_trace failed", exc_info=True)
+        return span, trace_id
+
+    def _obs_finish(self, span, trace_id, task: "Task", payload: Dict[str, Any]) -> None:
+        telemetry = getattr(self, "telemetry", None)
+        if telemetry is not None and span is not None:
+            try:
+                telemetry.end_span(span, status=task.status, tags={"agent": task.agent})
+            except Exception:
+                logger.debug("telemetry end_span failed", exc_info=True)
+        reasoning = getattr(self, "reasoning", None)
+        if reasoning is not None and trace_id is not None:
+            try:
+                reasoning.record_decision(trace_id, "dispatch", [], task.agent or "", task.intent or "")
+                reasoning.finish_trace(trace_id, str(task.result))
+            except Exception:
+                logger.debug("reasoning finish_trace failed", exc_info=True)
+        budget = getattr(self, "budget", None)
+        if budget is not None:
+            try:
+                text = json.dumps(payload, default=str) + json.dumps(task.result or {}, default=str)
+                budget.track_tokens(task.agent or "unknown", budget.estimate_tokens(text))
+            except Exception:
+                logger.debug("budget tracking failed", exc_info=True)
+        verifier = getattr(self, "verifier", None)
+        if verifier is not None and task.status == "done" and isinstance(task.result, dict):
+            try:
+                vr = verifier.verify_result(task.result, {"required": ["status"]})
+                task.result["_verification"] = {"passed": vr.passed, "score": vr.score}
+                verifier.record_result(task.task_id, vr)
+            except Exception:
+                logger.debug("verification failed", exc_info=True)
 
     # agent registry -------------------------------------------------------
     def register_agent(self, name: str, agent: Any) -> None:
@@ -253,6 +306,7 @@ class Orchestrator:
             return
         self._cache_misses += 1
 
+        span, trace_id = self._obs_start(task.intent)
         try:
             if hasattr(agent, "execute"):
                 result = agent.execute(payload)
@@ -287,6 +341,7 @@ class Orchestrator:
         finally:
             task.finished_at = time.time()
             latency = (task.finished_at - task.started_at) if task.started_at else None
+            self._obs_finish(span, trace_id, task, payload)
             if learner and task.agent:
                 try:
                     learner.record_outcome(
@@ -347,10 +402,12 @@ class Orchestrator:
         task.status = "running"
         task.started_at = time.time()
         agent = self.get_agent("skill_runner")
+        span = trace_id = None
         if not agent:
             task.status = "failed"
             task.error = "no skill_runner agent registered"
         else:
+            span, trace_id = self._obs_start(task.intent)
             try:
                 result = agent.execute({"skill_name": skill_name, **task.payload})
                 task.result = result if isinstance(result, dict) else {"result": str(result)}
@@ -358,6 +415,7 @@ class Orchestrator:
             except Exception as e:
                 task.status = "failed"
                 task.error = str(e)
+            self._obs_finish(span, trace_id, task, task.payload)
         task.finished_at = time.time()
         if learner and skill_name:
             try:
