@@ -48,7 +48,10 @@ class TelegramAgent(BaseAgent):
             )
 
     def _handle_inbound(self, chat_id: str, text: str, ts: float) -> str:
-        """Returns status: throttled | noop | dispatched."""
+        """Returns status: unauthorized | throttled | noop | dispatched."""
+        if not self._chat_id or str(chat_id) != str(self._chat_id):
+            logger.warning("telegram inbound rejected: unauthorized chat_id=%s", chat_id)
+            return "unauthorized"
         if not self._guard.should_process(chat_id, text, ts):
             return "throttled"
         if self._guard.is_noop(text) and self._guard.allow_noop_reply(chat_id, ts):
@@ -97,6 +100,8 @@ class TelegramAgent(BaseAgent):
             if not text or not chat_id:
                 return {"status": "skipped", "reason": "invalid update"}
             status = self._handle_inbound(chat_id, text, ts)
+            if status == "unauthorized":
+                return {"status": "skipped", "reason": "unauthorized", "chat_id": chat_id}
             if status == "throttled":
                 return {"status": "throttled", "chat_id": chat_id}
             if status == "noop":
