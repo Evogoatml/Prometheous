@@ -8,6 +8,7 @@ Responsibilities:
   - Update utils.state so restarts resume correctly
   - NOT call the LLM. The LLM is called only by the gateway.
 """
+import json
 import logging
 import os
 import time
@@ -23,6 +24,10 @@ from utils.helpers import generate_id, payload_hash
 # Skip agents that have external side effects or mutate state.
 _CACHE_MAX = int(os.environ.get("PROM_DISPATCH_CACHE_MAX", "256"))
 _CACHE_TTL_S = float(os.environ.get("PROM_DISPATCH_CACHE_TTL", "300"))
+
+# How often (in completed tasks) to run a ContinuousImprover cycle.
+# Set <= 0 to disable.
+_IMPROVER_INTERVAL = int(os.environ.get("PROM_IMPROVER_INTERVAL", "25"))
 _SKIP_CACHE_AGENTS = frozenset({
     "telegram", "skill_runner", "skill_builder", "task", "task_agent",
     "mcp_tools", "ghost_sentinel", "growth", "mission", "mosaic",
@@ -119,6 +124,75 @@ class Orchestrator:
             "hits": self._cache_hits,
             "misses": self._cache_misses,
         }
+
+    # observability / verification hooks ------------------------------------
+    # main.py's bootstrap() attaches these onto the shared `orchestrator`
+    # instance (self.telemetry, self.reasoning, self.budget, self.verifier);
+    # they're optional so getattr() with a None default keeps this safe when
+    # a given module failed to load at boot.
+    def _obs_start(self, intent: str):
+        span = None
+        trace_id = None
+        telemetry = getattr(self, "telemetry", None)
+        if telemetry is not None:
+            try:
+                span = telemetry.start_span(intent)
+            except Exception:
+                logger.debug("telemetry start_span failed", exc_info=True)
+        reasoning = getattr(self, "reasoning", None)
+        if reasoning is not None:
+            try:
+                trace_id = reasoning.start_trace(intent)
+            except Exception:
+                logger.debug("reasoning start_trace failed", exc_info=True)
+        return span, trace_id
+
+    def _obs_finish(self, span, trace_id, task: "Task", payload: Dict[str, Any]) -> None:
+        telemetry = getattr(self, "telemetry", None)
+        if telemetry is not None and span is not None:
+            try:
+                telemetry.end_span(span, status=task.status, tags={"agent": task.agent})
+            except Exception:
+                logger.debug("telemetry end_span failed", exc_info=True)
+        reasoning = getattr(self, "reasoning", None)
+        if reasoning is not None and trace_id is not None:
+            try:
+                reasoning.record_decision(trace_id, "dispatch", [], task.agent or "", task.intent or "")
+                reasoning.finish_trace(trace_id, str(task.result))
+            except Exception:
+                logger.debug("reasoning finish_trace failed", exc_info=True)
+        budget = getattr(self, "budget", None)
+        if budget is not None:
+            try:
+                text = json.dumps(payload, default=str) + json.dumps(task.result or {}, default=str)
+                budget.track_tokens(task.agent or "unknown", budget.estimate_tokens(text))
+            except Exception:
+                logger.debug("budget tracking failed", exc_info=True)
+        verifier = getattr(self, "verifier", None)
+        if verifier is not None and task.status == "done" and isinstance(task.result, dict):
+            try:
+                vr = verifier.verify_result(task.result, {"required": ["status"]})
+                task.result["_verification"] = {"passed": vr.passed, "score": vr.score}
+                verifier.record_result(task.task_id, vr)
+            except Exception:
+                logger.debug("verification failed", exc_info=True)
+
+    def _maybe_run_improver(self) -> None:
+        """Periodically run ContinuousImprover.run_cycle() — same cadence
+        pattern as learner.auto_tune() below. improver.run_cycle() reads
+        data/learning/trajectories.jsonl (already populated by
+        record_trajectory) and writes data/learning/improver_report.json;
+        it never mutates task state, so this is safe to call opportunistically.
+        """
+        improver = getattr(self, "improver", None)
+        if improver is None or _IMPROVER_INTERVAL <= 0:
+            return
+        if state.total_tasks_completed % _IMPROVER_INTERVAL != 0:
+            return
+        try:
+            improver.run_cycle()
+        except Exception:
+            logger.debug("continuous improver cycle failed", exc_info=True)
 
     # agent registry -------------------------------------------------------
     def register_agent(self, name: str, agent: Any) -> None:
@@ -253,6 +327,7 @@ class Orchestrator:
             return
         self._cache_misses += 1
 
+        span, trace_id = self._obs_start(task.intent)
         try:
             if hasattr(agent, "execute"):
                 result = agent.execute(payload)
@@ -287,6 +362,7 @@ class Orchestrator:
         finally:
             task.finished_at = time.time()
             latency = (task.finished_at - task.started_at) if task.started_at else None
+            self._obs_finish(span, trace_id, task, payload)
             if learner and task.agent:
                 try:
                     learner.record_outcome(
@@ -316,6 +392,7 @@ class Orchestrator:
                 except Exception:
                     logger.debug("trajectory record failed", exc_info=True)
             state.total_tasks_completed += 1
+            self._maybe_run_improver()
             if bus:
                 try:
                     bus.publish_sync("task.done", {"task_id": task.task_id, "status": task.status, "agent": task.agent}, source="orchestrator")
@@ -347,10 +424,12 @@ class Orchestrator:
         task.status = "running"
         task.started_at = time.time()
         agent = self.get_agent("skill_runner")
+        span = trace_id = None
         if not agent:
             task.status = "failed"
             task.error = "no skill_runner agent registered"
         else:
+            span, trace_id = self._obs_start(task.intent)
             try:
                 result = agent.execute({"skill_name": skill_name, **task.payload})
                 task.result = result if isinstance(result, dict) else {"result": str(result)}
@@ -358,6 +437,7 @@ class Orchestrator:
             except Exception as e:
                 task.status = "failed"
                 task.error = str(e)
+            self._obs_finish(span, trace_id, task, task.payload)
         task.finished_at = time.time()
         if learner and skill_name:
             try:
@@ -387,6 +467,7 @@ class Orchestrator:
             except Exception:
                 pass
         state.total_tasks_completed += 1
+        self._maybe_run_improver()
 
 
 # Single shared instance

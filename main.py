@@ -13,6 +13,7 @@ import logging
 import time
 import importlib
 from pathlib import Path
+from typing import Optional
 
 # Make project root importable when run from anywhere.
 ROOT = Path(__file__).resolve().parent
@@ -511,15 +512,57 @@ def handle(text: str, chat_id: int = 0) -> str:
     return result.reply or ""
 
 
-def start() -> None:
-    """One start: full bootstrap + Telegram. Entire system. No partial modes."""
+REPL_EXIT_WORDS = {"exit", "quit", ":q", ":wq"}
+
+
+def repl_loop() -> None:
+    """Interactive stdin REPL — talks to the same gateway Telegram uses."""
+    print("[main] REPL ready. Type a message, or 'exit' to quit (Ctrl-D also works).")
+    while True:
+        try:
+            text = input("prom> ").strip()
+        except EOFError:
+            print()
+            break
+        except KeyboardInterrupt:
+            print()
+            continue
+        if not text:
+            continue
+        if text.lower() in REPL_EXIT_WORDS:
+            break
+        try:
+            reply = handle(text)
+        except Exception as e:
+            print(f"[error] {e}")
+            continue
+        if reply:
+            print(reply)
+
+
+def start(run_repl: Optional[bool] = None) -> None:
+    """Full bootstrap + Telegram, then either an interactive REPL or an idle wait.
+
+    `run_repl` defaults to the PROM_REPL env var (default on); pass
+    run_repl=False or set PROM_REPL=0 / --no-repl to stay headless
+    (Telegram-only, e.g. under systemd).
+    """
     bootstrap()
     print("[main] Prometheous running — full stack.")
     print("[main] Agents:", ", ".join(sorted(orchestrator.list_agents())))
+
+    if run_repl is None:
+        run_repl = os.getenv("PROM_REPL", "1").lower() not in ("0", "false", "no")
+
     try:
-        while True:
-            time.sleep(3600)
+        if run_repl and sys.stdin.isatty():
+            repl_loop()
+        else:
+            while True:
+                time.sleep(3600)
     except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
         print("\n[main] Shutting down.")
 
 
@@ -529,4 +572,5 @@ repl = start
 
 
 if __name__ == "__main__":
-    start()
+    _no_repl = "--no-repl" in sys.argv[1:]
+    start(run_repl=(False if _no_repl else None))

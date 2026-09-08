@@ -26,6 +26,24 @@ class VerificationResult:
 class VerificationLayer:
     """Lightweight verification routines with graceful degradation."""
 
+    def __init__(self) -> None:
+        # Bounded record of the most recent verification per task, so
+        # collect_feedback can report something real instead of a fixed
+        # "pending" placeholder.
+        self._by_task: "Dict[str, VerificationResult]" = {}
+        self._task_order: List[str] = []
+        self._max_tasks = 500
+
+    def record_result(self, task_id: str, result: VerificationResult) -> None:
+        if not task_id:
+            return
+        if task_id not in self._by_task:
+            self._task_order.append(task_id)
+        self._by_task[task_id] = result
+        while len(self._task_order) > self._max_tasks:
+            stale = self._task_order.pop(0)
+            self._by_task.pop(stale, None)
+
     def verify_file(self, path: str) -> VerificationResult:
         checks: List[str] = []
         failures: List[str] = []
@@ -105,8 +123,19 @@ class VerificationLayer:
                 failures.append(f"missing required key: {key}")
         return self._result(checks, failures)
 
-    def collect_feedback(self, task_id: str, query: str) -> Dict[str, str]:
-        return {"task_id": task_id, "query": query, "feedback": "pending"}
+    def collect_feedback(self, task_id: str, query: str) -> Dict[str, Any]:
+        result = self._by_task.get(task_id)
+        if result is None:
+            return {"task_id": task_id, "query": query, "feedback": "no verification recorded"}
+        feedback = "passed" if result.passed else "failed"
+        return {
+            "task_id": task_id,
+            "query": query,
+            "feedback": feedback,
+            "score": result.score,
+            "checks": list(result.checks),
+            "failures": list(result.failures),
+        }
 
     @staticmethod
     def _result(checks: List[str], failures: List[str]) -> VerificationResult:

@@ -14,13 +14,36 @@ in-process calls only, no network exposure, no shell by default.
 """
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from mcp.sandbox import ROOT, resolve_project_path, run_shell
+
+_BLOCKED_HOSTS = {"localhost", "metadata.google.internal", "metadata"}
+
+
+def _blocked_url_reason(url: str) -> Optional[str]:
+    """Reject URLs that resolve to loopback, link-local, or private addresses (SSRF guard)."""
+    host = urllib.parse.urlparse(url).hostname or ""
+    if not host:
+        return "missing host"
+    if host.lower() in _BLOCKED_HOSTS:
+        return f"blocked host: {host}"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as exc:
+        return f"could not resolve host: {exc}"
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            return f"blocked address: {ip}"
+    return None
 
 
 class ToolRegistry:
@@ -143,6 +166,9 @@ def tool_web_search(query: str, num_results: int = 5) -> Dict[str, Any]:
 def tool_http_get(url: str, max_bytes: int = 200_000) -> Dict[str, Any]:
     if not re.match(r"^https?://", url):
         return {"error": f"unsupported url scheme: {url}"}
+    blocked = _blocked_url_reason(url)
+    if blocked:
+        return {"error": blocked, "url": url}
     req = urllib.request.Request(url, headers={"User-Agent": "Prometheous-MCP/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:

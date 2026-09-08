@@ -6,6 +6,7 @@ shell.run can execute any command anywhere on the OS.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shlex
@@ -13,9 +14,31 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+logger = logging.getLogger(__name__)
+
 ROOT = Path(__file__).resolve().parents[1]
 
 FULL_OS_ACCESS = os.getenv("PROM_FULL_OS_ACCESS", "").lower() in ("1", "true", "yes")
+
+if FULL_OS_ACCESS and os.getenv("TELEGRAM_BOT_TOKEN"):
+    logger.warning(
+        "PROM_FULL_OS_ACCESS=1 is set with a Telegram bot token configured — "
+        "shell.run can execute ANY command anywhere on the OS for whoever the "
+        "bot accepts messages from. This is almost certainly not what you want "
+        "in this configuration."
+    )
+
+# Paths shell/fs tools may never read or write, even under ROOT.
+_DENIED_PATH_PATTERNS = (
+    re.compile(r"(^|/)\.env(\..*)?$"),
+    re.compile(r"(^|/)\.git(/|$)"),
+)
+
+
+def _is_denied_path(resolved: Path) -> bool:
+    rel = resolved.as_posix()
+    return any(p.search(rel) for p in _DENIED_PATH_PATTERNS)
+
 
 _SHELL_META: Dict[str, Dict[str, Any]] = {
     "pwd": {"max_args": 0},
@@ -55,6 +78,9 @@ def resolve_project_path(path: str, *, must_exist: bool = False) -> Tuple[Option
         return None, "path outside project root"
     except Exception as exc:
         return None, f"invalid path: {exc}"
+
+    if _is_denied_path(resolved):
+        return None, "access to this path is not permitted"
 
     if must_exist and not resolved.exists():
         return None, f"missing file: {path}"

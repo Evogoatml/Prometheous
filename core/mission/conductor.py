@@ -1025,20 +1025,24 @@ if __name__ == "__main__":
     return {"status": "ok", "message": "; ".join(notes), "bot": "%s"}
 ''' % bot_name
 
-        # generic: print goal + produce structured result
+        # generic: no specialized handler matched this goal — say so honestly
+        # instead of claiming completion, and surface whatever research was
+        # actually gathered as the real deliverable.
         research_note = (research or "")[:200].replace('"', "'")
         return f'''    lines = [
-        "Worker `{bot_name}` executing mission",
+        "Worker `{bot_name}` has no specialized handler for this goal",
         f"Goal: {{goal[:200]}}",
     ]
     research_snip = {json.dumps(research_note)}
     if research_snip:
-        lines.append(f"Research hint: {{research_snip[:160]}}")
-    lines.append("Status: complete (deterministic worker)")
+        lines.append(f"Research gathered: {{research_snip[:160]}}")
+    else:
+        lines.append("No research or specialized logic available for this goal")
+    lines.append("Status: partial — needs a real handler for this goal type")
     message = "\\n".join(lines)
     print(message)
     return {{
-        "status": "ok",
+        "status": "partial",
         "message": message,
         "bot": "{bot_name}",
         "goal": goal[:300],
